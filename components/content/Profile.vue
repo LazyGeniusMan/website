@@ -31,6 +31,7 @@ css({
   h3: {
     display: 'block',
     margin: '0px',
+    textAlign: 'center',
     fontSize: '{prose.h3.fontSize}',
     lineHeight: '{prose.h3.lineHeight}',
     fontWeight: '{prose.h3.fontWeight}',

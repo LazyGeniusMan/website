@@ -22,6 +22,7 @@ css({
   h2: {
     display: 'block',
     margin: '0px',
+    textAlign: 'center',
     fontSize: '{prose.h2.fontSize}',
     lineHeight: '{prose.h2.lineHeight}',
     fontWeight: '{prose.h2.fontWeight}',

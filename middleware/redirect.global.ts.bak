@@ -1,0 +1,19 @@
+// Alternative redirect method for routeRules in nuxt.config.ts
+//export default defineNuxtRouteMiddleware((to, from) => {
+//  switch (from.path) {
+//    case "/go/linkedin":
+//      return navigateTo("https://www.linkedin.com/in/andriyansyah-nurrachman/", {
+//        external: true,
+//        redirectCode: 302,
+//      });
+//    
+//    case "/go/instagram":
+//      return navigateTo("https://instagram.com/andriyansyah.n_", {
+//        external: true,
+//        redirectCode: 302,
+//      });
+//    
+//    default:
+//      break;
+//  }
+//});

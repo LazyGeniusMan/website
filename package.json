@@ -1,0 +1,16 @@
+{
+  "name": "yansyah-website",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nuxi dev",
+    "build": "nuxi build",
+    "generate": "nuxi generate",
+    "preview": "nuxi preview"
+  },
+  "devDependencies": {
+    "@nuxt-themes/alpine": "^1.0.2",
+    "@nuxtjs/tailwindcss": "^6.2.0",
+    "nuxt": "^3.0.0"
+  }
+}

@@ -10,6 +10,15 @@ export default defineNuxtConfig({
       ]
     }
   },
+  nitro: {
+    prerender: {
+      routes: [
+        '/go/instagram',
+        '/go/linkedin',
+        '/go/thesis'
+      ]
+    }
+  },
   // Server side redirect
   //routeRules: {
   //  '/go/linkedin' : {

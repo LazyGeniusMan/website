@@ -1,7 +1,7 @@
 <template>
   <img
     v-bind="$attrs"
-    src="/yansyah.jpg"
+    src="/yansyah.jpeg"
     alt="Yansyah"
     :width="width"
     :height="height"

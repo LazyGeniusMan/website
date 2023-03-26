@@ -15,7 +15,8 @@ export default defineNuxtConfig({
       routes: [
         '/go/instagram',
         '/go/linkedin',
-        '/go/thesis'
+        '/go/thesis',
+        '/go/bachelor-thesis'
       ]
     }
   },

@@ -7,5 +7,5 @@ title: Instagram
 ---
 
 ::div{.flex .flex-col .items-center .gap-y-5}
-::::redirect{to="https://instagram.com/andriyansyah.n_"}
+::::redirect{to="https://instagram.com/__yansyah"}
 ::

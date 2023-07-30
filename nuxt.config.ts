@@ -12,6 +12,7 @@ export default defineNuxtConfig({
   },
   nitro: {
     prerender: {
+      crawLinks: true,
       routes: [
         '/go/instagram',
         '/go/linkedin',

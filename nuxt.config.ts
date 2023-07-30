@@ -12,11 +12,15 @@ export default defineNuxtConfig({
   },
   nitro: {
     prerender: {
+      crawLinks: true,
       routes: [
         '/go/instagram',
         '/go/linkedin',
         '/go/thesis',
-        '/go/bachelor-thesis'
+        '/go/bachelor-thesis',
+        '/cv',
+        '/projects',
+        '/certificates',
       ]
     }
   },

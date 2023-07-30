@@ -10,17 +10,17 @@ export default defineNuxtConfig({
       ]
     }
   },
-  nitro: {
-    prerender: {
-      crawLinks: true,
-      routes: [
-        '/go/instagram',
-        '/go/linkedin',
-        '/go/thesis',
-        '/go/bachelor-thesis'
-      ]
-    }
-  },
+  // nitro: {
+  //   prerender: {
+  //     crawLinks: true,
+  //     routes: [
+  //       '/go/instagram',
+  //       '/go/linkedin',
+  //       '/go/thesis',
+  //       '/go/bachelor-thesis'
+  //     ]
+  //   }
+  // },
   // Server side redirect
   //routeRules: {
   //  '/go/linkedin' : {

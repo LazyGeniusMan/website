@@ -1,30 +1,6 @@
 <template>
-  <h2>Redirecting...</h2>
-  <h3>
-    <a :href="to">Click Here If Not Redirected</a>
-  </h3>
+  <Card title="Redirecting" description="Click here if not redirecting automatically" :to="to" icon="lucide:info" />
 </template>
-
-<style scoped lang="ts">
-css({
-  h2: {
-    display: 'block',
-    margin: '0px',
-    fontSize: '{prose.h2.fontSize}',
-    lineHeight: '{prose.h2.lineHeight}',
-    fontWeight: '{prose.h2.fontWeight}',
-    letterSpacing: '{prose.h2.letterSpacing}'
-  },
-  h3: {
-    display: 'block',
-    margin: '0px',
-    fontSize: '{prose.h3.fontSize}',
-    lineHeight: '{prose.h3.lineHeight}',
-    fontWeight: '{prose.h3.fontWeight}',
-    letterSpacing: '{prose.h3.letterSpacing}',
-  }
-})
-</style>
 
 <script setup lang="ts">
 const props = defineProps({
@@ -46,11 +22,11 @@ const props = defineProps({
   }
 });
 
- 
+
 if (props.ext == true) {
   useHead({
     meta: [
-      { "http-equiv":'Refresh', content: props.delay + '; URL=' + props.to }
+      { "http-equiv": 'Refresh', content: props.delay + '; URL=' + props.to }
     ]
   });
 } else {

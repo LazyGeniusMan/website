@@ -1,6 +1,7 @@
+// https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  extends: "@nuxt-themes/alpine",
-  modules: ["@nuxtjs/tailwindcss"],
+  devtools: { enabled: true },
+  extends: ['shadcn-docs-nuxt'],
   app: {
     head: {
       link: [
@@ -10,39 +11,19 @@ export default defineNuxtConfig({
       ]
     }
   },
-  nitro: {
-    prerender: {
-      crawLinks: true,
-      routes: [
-        '/go/instagram',
-        '/go/linkedin',
-        '/go/thesis',
-        '/go/bachelor-thesis',
-        '/cv',
-        '/projects',
-        '/certificates',
-      ]
-    }
+  routeRules:{
+    '/**': { prerender: true },
+    '/': { prerender: true },
+    '/profile': { prerender: true },
+    '/profile/cv': { prerender: true },
+    '/profile/certificates': { prerender: true },
+    '/profile/projects': { prerender: true },
+    '/gallery': { prerender: true },
+    '/go/thesis': { prerender: true },
+    '/go/bachelor-thesis': { prerender: true },
+    '/go/linkedin': { prerender: true },
+    '/go/github': { prerender: true },
+    '/go/instagram': { prerender: true },
   },
-  // Server side redirect
-  //routeRules: {
-  //  '/go/linkedin' : {
-  //    redirect: {
-  //      to: 'https://www.linkedin.com/in/andriyansyah-nurrachman/',
-  //      statusCode: 302
-  //    }
-  //  },
-  //  '/go/instagram' : {
-  //    redirect: {
-  //      to: 'https://instagram.com/andriyansyah.n_',
-  //      statusCode: 302
-  //    }
-  //  }
-  //},
-  tailwindcss: {
-    config: {
-      important: true,
-      content: ["content/**/**.md"]
-    },
-  }
+  compatibilityDate: '2024-07-06',
 });

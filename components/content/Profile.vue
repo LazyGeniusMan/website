@@ -1,54 +1,33 @@
 <template>
-  <img
-    v-bind="$attrs"
-    src="/yansyah.jpeg"
-    alt="Yansyah"
-    :width="width"
-    :height="height"
-    class="rounded-lg"
-  />
-  <h2>
-    <!--  <ContentSlot :use="$slots.name" unwrap="p" /> -->
-    Andriyansyah Nurrachman
-  </h2>
-  <h3>
-    <!--  <ContentSlot :use="$slots.location" unwrap="p" /> -->
-    Bandung, Indonesia
-  </h3>
+  <div class="flex flex-col items-center space-y-4"> 
+    <div class="overflow-hidden rounded-md">
+      <NuxtImg :src="imageUrl" :alt="name"
+        class="h-auto w-48 object-cover transition-all hover:scale-105 aspect-[3/4]" />
+    </div>
+    <div class="space-y-1 text-sm text-center">
+      <h3 class="text-3xl leading-none">
+        {{ name }}
+      </h3>
+      <p class="text-xl text-muted-foreground">
+        {{ location }}
+      </p>
+    </div>
+  </div>
 </template>
-
-<style scoped lang="ts">
-css({
-  h2: {
-    display: 'block',
-    margin: '0px',
-    textAlign: 'center',
-    fontSize: '{prose.h2.fontSize}',
-    lineHeight: '{prose.h2.lineHeight}',
-    fontWeight: '{prose.h2.fontWeight}',
-    letterSpacing: '{prose.h2.letterSpacing}'
-  },
-  h3: {
-    display: 'block',
-    margin: '0px',
-    textAlign: 'center',
-    fontSize: '{prose.h3.fontSize}',
-    lineHeight: '{prose.h3.lineHeight}',
-    fontWeight: '{prose.h3.fontWeight}',
-    letterSpacing: '{prose.h3.letterSpacing}'
-  }
-})
-</style>
 
 <script setup lang="ts">
 defineProps({
-  width: {
-    type: [String, Number],
-    default: undefined,
+  name: {
+    type: String,
+    default: "Andriyansyah Nurrachman",
   },
-  height: {
-    type: [String, Number],
-    default: undefined,
+  location: {
+    type: String,
+    default: "Bandung, Indonesia",
+  },
+  imageUrl: {
+    type: String,
+    default: "/img/yansyah.jpeg",
   },
 });
 </script>

@@ -13,6 +13,11 @@ export default defineNuxtConfig({
   },
   routeRules:{
     '/**': { prerender: true },
+    '/': { prerender: true },
+    '/profile': { prerender: true },
+    '/profile/cv': { prerender: true },
+    '/profile/certificates': { prerender: true },
+    '/profile/projects': { prerender: true },
     '/gallery': { prerender: true },
     '/go/thesis': { prerender: true },
     '/go/bachelor-thesis': { prerender: true },

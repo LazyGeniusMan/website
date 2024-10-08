@@ -10,20 +10,20 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@vueuse/core": "^11.0.3",
+    "@vueuse/core": "^11.1.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "embla-carousel-vue": "^8.2.1",
-    "lucide-vue-next": "^0.439.0",
-    "nuxt": "^3.13.1",
-    "radix-vue": "^1.9.5",
-    "shadcn-docs-nuxt": "^0.5.3",
-    "tailwind-merge": "^2.5.2",
+    "embla-carousel-vue": "^8.3.0",
+    "lucide-vue-next": "^0.451.0",
+    "nuxt": "^3.13.2",
+    "radix-vue": "^1.9.7",
+    "shadcn-docs-nuxt": "^0.5.8",
+    "tailwind-merge": "^2.5.3",
     "tailwindcss-animate": "^1.0.7",
-    "vue": "^3.5.3",
-    "vue-router": "^4.4.3"
+    "vue": "^3.5.11",
+    "vue-router": "^4.4.5"
   },
-  "packageManager": "pnpm@9.7.0+sha512.dc09430156b427f5ecfc79888899e1c39d2d690f004be70e05230b72cb173d96839587545d09429b55ac3c429c801b4dc3c0e002f653830a420fa2dd4e3cf9cf",
+  "packageManager": "pnpm@9.12.1+sha512.e5a7e52a4183a02d5931057f7a0dbff9d5e9ce3161e33fa68ae392125b79282a8a8a470a51dfc8a0ed86221442eb2fb57019b0990ed24fab519bf0e1bc5ccfc4",
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.12.1"
   }

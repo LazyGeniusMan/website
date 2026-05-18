@@ -14,7 +14,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "embla-carousel-vue": "^8.2.1",
-    "lucide-vue-next": "^0.439.0",
+    "lucide-vue-next": "^1.0.0",
     "nuxt": "^3.13.1",
     "radix-vue": "^1.9.5",
     "shadcn-docs-nuxt": "^0.5.3",

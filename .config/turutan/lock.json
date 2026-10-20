@@ -1,0 +1,509 @@
+{
+  "schema_version": 1,
+  "$schema": "./schemas/lock.schema.json",
+  "engine_version": "dev",
+  "source": "git+https://github.com/LazyGeniusMan/turutan.git?ref=main/default@0.2.0",
+  "ref": "0.2.0",
+  "resolved_sha": "32b6f64f7a96d665424b2a62bc61d4abf161dca0ce2ca1f5f7a02d0f82317f3f",
+  "registry": "git+https://github.com/LazyGeniusMan/turutan.git?ref=main",
+  "uri": "oci://ghcr.io/lazygeniusman/turutan/templates/default:0.2.0",
+  "digest": "sha256:32b6f64f7a96d665424b2a62bc61d4abf161dca0ce2ca1f5f7a02d0f82317f3f",
+  "manifest_hash": "sha256:f18ee3058165f3a2efcac233f14430c6f82a3204f37f956070473b3039e7b828",
+  "files": [
+    {
+      "path": ".config/ai-rulez/config.ai.toml",
+      "sha256": "15eaf1db18ddb817c99de30e77255deb4ef09dedf5278c6bd35add4b3e007384",
+      "bytes": 912
+    },
+    {
+      "path": ".config/ai-rulez/config.astro.toml",
+      "sha256": "a27db60299a6733bf99cae9e52242a5a54cd35d7a0395d259850c08435b14ec4",
+      "bytes": 138
+    },
+    {
+      "path": ".config/ai-rulez/config.cloudflare.toml",
+      "sha256": "93d65df44d6ca72f7e85d61d6ab5571bace546965efda3b61e06e5a87546fc20",
+      "bytes": 327
+    },
+    {
+      "path": ".config/ai-rulez/config.custom.toml",
+      "sha256": "26dba458caf6a35021fc62021f6ba1a73c3f363d0eb19b8fc4542cc7e8e73698",
+      "bytes": 509
+    },
+    {
+      "path": ".config/ai-rulez/config.github.toml",
+      "sha256": "0710e22563a1889ae4ba6de3277aa6d1b84c87054d4514079e3162d7399df1ef",
+      "bytes": 347
+    },
+    {
+      "path": ".config/ai-rulez/config.svelte.toml",
+      "sha256": "1a0e5cf9246573f01bb53049f074c4f2b27390649b0c778c93740f45d0faedaf",
+      "bytes": 656
+    },
+    {
+      "path": ".config/ai-rulez/config.toml",
+      "sha256": "0aca7b5632fffe2e72900eec0ae4e3c199c7497b7c7dfe4528867d38d18e5007",
+      "bytes": 1903
+    },
+    {
+      "path": ".config/ai-rulez/config.typescript.toml",
+      "sha256": "27c8a07c1473fa007bca1a9002dfc0b44baac8736f195df454aebeffe503df08",
+      "bytes": 68
+    },
+    {
+      "path": ".config/ai-rulez/domains/ai/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/ai/context/ai-toolchains.md",
+      "sha256": "17355c87b450671c29a7b88b9451d25852a9343b80e1662e9096ecc26601bb8a",
+      "bytes": 407
+    },
+    {
+      "path": ".config/ai-rulez/domains/ai/rules/ai-rulez-usage.md",
+      "sha256": "c336dea8662c283872a0d3ab803f4548478088ca1cab39893fd161b2066e5253",
+      "bytes": 371
+    },
+    {
+      "path": ".config/ai-rulez/domains/ai/rules/basemind-usage.md",
+      "sha256": "06d6f5b80a3f7b00b095fee636ec10732e4adba2a8f0cf7ec88da7251cfff8cc",
+      "bytes": 1676
+    },
+    {
+      "path": ".config/ai-rulez/domains/ai/rules/docs-target-reader.md",
+      "sha256": "b24d67607061da2d5d7bf0f0cd0b277350b88042a8580db29bd0042456f83c9c",
+      "bytes": 582
+    },
+    {
+      "path": ".config/ai-rulez/domains/ai/rules/skill-usage.md",
+      "sha256": "93c18c564aef0b6454f5dc91fda83c4e48354f82df57175b4396ab5b8f61621d",
+      "bytes": 539
+    },
+    {
+      "path": ".config/ai-rulez/domains/ai/rules/subagent-spawn.md",
+      "sha256": "1abcd998536c702abf15db5a9f1b20f159ce619da77e8c14f4405f5ffcc06d41",
+      "bytes": 439
+    },
+    {
+      "path": ".config/ai-rulez/domains/ai/rules/uncomment-usage.md",
+      "sha256": "fbf0f2b95c97b72a731f2154241dae16a4b5a1bdd6d1fcc32cc4ec71cafa003e",
+      "bytes": 336
+    },
+    {
+      "path": ".config/ai-rulez/domains/ai/rules/web-access.md",
+      "sha256": "bfca0b0c4a1fd9ccc5d318baac37aab48f5a7158b96576c420fdc5906b78f8d6",
+      "bytes": 198
+    },
+    {
+      "path": ".config/ai-rulez/domains/ai/skills/orchestrate-agent/SKILL.md",
+      "sha256": "bd705f36581cc2e0ec705d96be8a10cf9d178b9af8d8508d76cd48294b7dc599",
+      "bytes": 12843
+    },
+    {
+      "path": ".config/ai-rulez/domains/astro/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/astro/rules/astro-usage.md",
+      "sha256": "f4ef1e1250d05b6e86552ee190d32ab4f04f505922643f61f18556477097efe6",
+      "bytes": 305
+    },
+    {
+      "path": ".config/ai-rulez/domains/cloudflare/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/cloudflare/rules/cf-usage.md",
+      "sha256": "5e29fd7304a1abd037f3422dc73e501a000df8cc4f5600ce4801e5b1eb3e54a7",
+      "bytes": 269
+    },
+    {
+      "path": ".config/ai-rulez/domains/core/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/core/context/core-toolchains.md",
+      "sha256": "f192f371388110a7bbaf7fcff19ed2e3be43e2ddfc0127f7b0c35a67bacc0ada",
+      "bytes": 481
+    },
+    {
+      "path": ".config/ai-rulez/domains/core/rules/dev-ci-environment.md",
+      "sha256": "62c9627c63bdd4203c544469d5c8bb46de617631d119adde0dbcdd0bdf866d1f",
+      "bytes": 1520
+    },
+    {
+      "path": ".config/ai-rulez/domains/core/rules/hk-usage.md",
+      "sha256": "1758371fe754dfdfba9040e6e5c36c618397cc0273cd882645d9eb00c019cc5a",
+      "bytes": 1537
+    },
+    {
+      "path": ".config/ai-rulez/domains/core/rules/mise-usage.md",
+      "sha256": "3096a6211a026d0403d04848d08cf1c112e93e58d4c09356f1afb39b146696cc",
+      "bytes": 316
+    },
+    {
+      "path": ".config/ai-rulez/domains/core/rules/toolchains-config.md",
+      "sha256": "b1367a057ba799f048c31a28126aae816b580618fc9a065da47a187af5415b8f",
+      "bytes": 537
+    },
+    {
+      "path": ".config/ai-rulez/domains/core/rules/toolchains-usage.md",
+      "sha256": "9788458d7f72b25bb022dd376897152d143e8179d9f78b3822463ba2de22397a",
+      "bytes": 420
+    },
+    {
+      "path": ".config/ai-rulez/domains/core/rules/updatecli-usage.md",
+      "sha256": "4fcc35ab31dc899839dfb23e659d6629e52b9883112c0205bc972e09e6044808",
+      "bytes": 239
+    },
+    {
+      "path": ".config/ai-rulez/domains/core/skills/task-runner/SKILL.md",
+      "sha256": "94cc6812c322760e7eeafc2216df9831aa68f8fc7e53a51acc41a564446bb231",
+      "bytes": 686
+    },
+    {
+      "path": ".config/ai-rulez/domains/custom/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/github/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/github/rules/github-skill-usage.md",
+      "sha256": "7222b2b5f74c5cd85296ad87c616eef5b0b8f18020c79f24478d6f4a800a916f",
+      "bytes": 359
+    },
+    {
+      "path": ".config/ai-rulez/domains/github/rules/github-toolchains.md",
+      "sha256": "bcc417f888fa34c4e7c0630a11a523000c3c89e6ea02f73ca09358ea4916218d",
+      "bytes": 604
+    },
+    {
+      "path": ".config/ai-rulez/domains/pkl/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/sh/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/svelte/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/svelte/agents/svelte-file-editor.md",
+      "sha256": "70c0fcf867d45b17edfa16ac79ca8d44860838675334c66363de3e35b1308adf",
+      "bytes": 2890
+    },
+    {
+      "path": ".config/ai-rulez/domains/svelte/commands/svelte-task.md",
+      "sha256": "de6c643b5e93084a5309ea767c68079d9f4480786660714f5bef152e41995328",
+      "bytes": 36780
+    },
+    {
+      "path": ".config/ai-rulez/domains/svelte/rules/svelte-usage.md",
+      "sha256": "0a4561b9883d35e77ba21fca8bacd40a4eac83bee2e3e621d36c8b0f3eeef7c7",
+      "bytes": 3052
+    },
+    {
+      "path": ".config/ai-rulez/domains/toml/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/typescript/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/domains/typescript/context/typescript-toolchains.md",
+      "sha256": "4f7b644f31ea037d69bec793760be0dcca43ee33983d5ca090b7fae571ca3b65",
+      "bytes": 669
+    },
+    {
+      "path": ".config/ai-rulez/domains/typescript/rules/viteplus-usage.md",
+      "sha256": "78e873f026076118d012744d10785e97fef423d2b486c0f1742a001c5d3b6197",
+      "bytes": 1511
+    },
+    {
+      "path": ".config/ai-rulez/domains/yml/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards.sh",
+      "sha256": "1ffc5774d86feb76fd703cb5fb1748ae94942d6fb1fe4f32c3c352ead264b636",
+      "bytes": 2238
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/astro.sh",
+      "sha256": "453f9f2a4ebb9237c02ad2fe5c4ea1ac870337a0c555bb5e9858a1cf661baf56",
+      "bytes": 243
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/cloudflare.sh",
+      "sha256": "453f9f2a4ebb9237c02ad2fe5c4ea1ac870337a0c555bb5e9858a1cf661baf56",
+      "bytes": 243
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/custom.sh",
+      "sha256": "453f9f2a4ebb9237c02ad2fe5c4ea1ac870337a0c555bb5e9858a1cf661baf56",
+      "bytes": 243
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/github.sh",
+      "sha256": "453f9f2a4ebb9237c02ad2fe5c4ea1ac870337a0c555bb5e9858a1cf661baf56",
+      "bytes": 243
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/index.sh",
+      "sha256": "44282146b9790948695c4d43fe38540061cf61b6677b75672601bfac581db385",
+      "bytes": 551
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/pkl.sh",
+      "sha256": "453f9f2a4ebb9237c02ad2fe5c4ea1ac870337a0c555bb5e9858a1cf661baf56",
+      "bytes": 243
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/sh.sh",
+      "sha256": "453f9f2a4ebb9237c02ad2fe5c4ea1ac870337a0c555bb5e9858a1cf661baf56",
+      "bytes": 243
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/svelte.sh",
+      "sha256": "453f9f2a4ebb9237c02ad2fe5c4ea1ac870337a0c555bb5e9858a1cf661baf56",
+      "bytes": 243
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/toml.sh",
+      "sha256": "453f9f2a4ebb9237c02ad2fe5c4ea1ac870337a0c555bb5e9858a1cf661baf56",
+      "bytes": 243
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/typescript.sh",
+      "sha256": "0d688d40bbea16f8e6c6c67e9e7c223e89f3fa46fd809a0b9d370d1c9d9637e0",
+      "bytes": 349
+    },
+    {
+      "path": ".config/ai-rulez/scripts/bash-guards/yml.sh",
+      "sha256": "453f9f2a4ebb9237c02ad2fe5c4ea1ac870337a0c555bb5e9858a1cf661baf56",
+      "bytes": 243
+    },
+    {
+      "path": ".config/basemind/config.toml",
+      "sha256": "f022f32b991f26c91493e4076b92460de635dde825e61d158c9af0d4fc297659",
+      "bytes": 862
+    },
+    {
+      "path": ".config/fnox.toml",
+      "sha256": "c5fd353d3c6e534f250730b845b8ff565c78642e267d3b7ffec6ef9cd6fc938c",
+      "bytes": 259
+    },
+    {
+      "path": ".config/hk.pkl",
+      "sha256": "03cd6be261b14d87c629cee77085b186cf9ef8c66133dae04a18d7e0eb18862b",
+      "bytes": 24
+    },
+    {
+      "path": ".config/hk/ai.pkl",
+      "sha256": "af4c12ff2157d7e4aafe723598f6a07e235bbbba4fb16263855b8df3b1f7f90f",
+      "bytes": 933
+    },
+    {
+      "path": ".config/hk/astro.pkl",
+      "sha256": "e8d452de9cf9fa531eb00b4f5d35a613bc5e0eb94b1c6831c5230819ffea5b78",
+      "bytes": 434
+    },
+    {
+      "path": ".config/hk/cloudflare.pkl",
+      "sha256": "ec915921a1718d8ab2291ef49cea68d4f73cb807a04907005451707ff3518c90",
+      "bytes": 439
+    },
+    {
+      "path": ".config/hk/core.pkl",
+      "sha256": "ac1597ae4e86ce59a2e581c70d2e652bd031f881237497e28fddacaf89adafed",
+      "bytes": 2882
+    },
+    {
+      "path": ".config/hk/custom.pkl",
+      "sha256": "35c880eb117df0d9525aefbed2a222983c7b6cbba1b687fa964408d236cc4013",
+      "bytes": 576
+    },
+    {
+      "path": ".config/hk/github.pkl",
+      "sha256": "fd8ad6b3252bee6453ec74d0357cd1693ede76c4cafa7e3e37bed96450772da6",
+      "bytes": 549
+    },
+    {
+      "path": ".config/hk/index.pkl",
+      "sha256": "c9beb24ad3fa17503ad0b01d300ec0681891965f08a4ff8f12a576bd3772eb27",
+      "bytes": 3046
+    },
+    {
+      "path": ".config/hk/pkl.pkl",
+      "sha256": "3d9e4c9936cbce74edd880edab2f6e6f568079551faaf3de4ab623dc9460247d",
+      "bytes": 693
+    },
+    {
+      "path": ".config/hk/sh.pkl",
+      "sha256": "50dc6c6e98d5c0572e31f3a4825214a4aa03c10b34217ade0215e1331b95f6c6",
+      "bytes": 1230
+    },
+    {
+      "path": ".config/hk/svelte.pkl",
+      "sha256": "976b652e9eb7f635b5ed917fd7a8d165c32d36e366dade4daf1878b36c1cfae2",
+      "bytes": 435
+    },
+    {
+      "path": ".config/hk/toml.pkl",
+      "sha256": "ce38884b2d96661ea087b3e91d2c582e2b0b283bf1d745f90a35c1952f05b089",
+      "bytes": 699
+    },
+    {
+      "path": ".config/hk/typescript.pkl",
+      "sha256": "26b57a421978e4eb9f3786d57cb33fd5c41576627ffc35630d0c6aadceaec062",
+      "bytes": 557
+    },
+    {
+      "path": ".config/hk/yml.pkl",
+      "sha256": "3882090207385b42ba00ce978afa13dff0a5253c1ce92c25dd4611e66933ad5f",
+      "bytes": 683
+    },
+    {
+      "path": ".config/mise/config.ai.toml",
+      "sha256": "209906f04e659544e8443a391d5fac6bb6735b16ec20b848f4ee1516d65ed926",
+      "bytes": 589
+    },
+    {
+      "path": ".config/mise/config.astro.toml",
+      "sha256": "a826bea05fe50a73a645d8fb12dc282f25363443266d9017372eaf8845946345",
+      "bytes": 8
+    },
+    {
+      "path": ".config/mise/config.cloudflare.toml",
+      "sha256": "7bdd95e27c959175744b80d8a39662050f3be7707a94d751a1c556d34d6a162f",
+      "bytes": 57
+    },
+    {
+      "path": ".config/mise/config.custom.toml",
+      "sha256": "71ec1fb61daf26aa832c82a4889c85d08ceccf07fefb65ab865a46da2f530c9e",
+      "bytes": 1070
+    },
+    {
+      "path": ".config/mise/config.github.toml",
+      "sha256": "cde2da180561c4c5afb779166454916c6631986c926ebe7e824da223427aff13",
+      "bytes": 220
+    },
+    {
+      "path": ".config/mise/config.svelte.toml",
+      "sha256": "a826bea05fe50a73a645d8fb12dc282f25363443266d9017372eaf8845946345",
+      "bytes": 8
+    },
+    {
+      "path": ".config/mise/config.toml",
+      "sha256": "04017515326266351c7c2b4a3c12b995ed469f4250524af861c2cf17a8a40a29",
+      "bytes": 2582
+    },
+    {
+      "path": ".config/mise/config.typescript.toml",
+      "sha256": "ef294ad7177b75258edf52cd1595c1af4896ecf7f0ced373fab0769d66493295",
+      "bytes": 992
+    },
+    {
+      "path": ".config/miserc.toml",
+      "sha256": "7156ec08034d3abedcc04e1b3a3b423204eb95f9883f9a121a901c18adf48826",
+      "bytes": 104
+    },
+    {
+      "path": ".config/ryl.toml",
+      "sha256": "e45d80b4a6bef032134a168d97a73a8ebbe1b7a39b258b925b4fbf1cf62e129b",
+      "bytes": 870
+    },
+    {
+      "path": ".config/tombi.toml",
+      "sha256": "2a1e6c76b2a5d9995c7f635d76097874de2cfd22b5539f15554e318718c6b322",
+      "bytes": 1187
+    },
+    {
+      "path": ".config/turutan/LICENSE",
+      "sha256": "91785783c96eb27c6b824be2cd1091287df34a96989dc089971feb2cb2735799",
+      "bytes": 918
+    },
+    {
+      "path": ".config/turutan/README.md",
+      "sha256": "cbde579a9afcfa684428383173422018a73db9e12624320d46b5a93b7261504f",
+      "bytes": 3138
+    },
+    {
+      "path": ".config/updatecli/github-actions.yaml",
+      "sha256": "d5a61cd59bca0a7649e32392658d1a8f1c15b1255986f2a66ca9ce6a63b9c553",
+      "bytes": 1656
+    },
+    {
+      "path": ".config/updatecli/mise-ai.yaml",
+      "sha256": "5dfd720344642f0f9bf4b5b4d0c109b12a0252da67f380cb8ae3aa48d20d791b",
+      "bytes": 1115
+    },
+    {
+      "path": ".config/updatecli/mise-core.yaml",
+      "sha256": "583f66d74b39cdf8e0c75efcedaf5aab805a3b7c639967203acdf8345175d755",
+      "bytes": 1539
+    },
+    {
+      "path": ".config/updatecli/mise-github.yaml",
+      "sha256": "7e3643e2e02fe6e66299806371f69b0f455fdc3c281df5d4a2010d66c8a223d3",
+      "bytes": 712
+    },
+    {
+      "path": ".github/jactionlint.yaml",
+      "sha256": "f9151d63ba198d4fec22a35e2c44c5ba751d80ad49be97c9ccdb3ca8f0e84695",
+      "bytes": 126
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "c6aaa136017531d96fd54c74f44fef22bf96db49651c7348207d09127d38e64f",
+      "bytes": 1389
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "sha256": "3d4a3d32ca19825db5065fce5d676ba1da347e4b139cf600d06be1a655ee2263",
+      "bytes": 1885
+    },
+    {
+      "path": ".github/workflows/scheduled.yml",
+      "sha256": "1f39fa7a1a94627d856047774b15064ee360f96cf1aa2f1e0ae23e147cf426ab",
+      "bytes": 793
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "49e1d7d79500a89c7ed258b81bcb81c858535e001a11803225cffef6622ad571",
+      "bytes": 347
+    },
+    {
+      "path": ".uncomment.toml",
+      "sha256": "32599d3a275e9c87eea907829d7ebb13f319bbc6927265a18b2c8b8676c30b3c",
+      "bytes": 1045
+    },
+    {
+      "path": ".vscode/extensions.json",
+      "sha256": "8b2edcccec23aace02b8bb72bb3423fda7e7f117e24d835c2530e416a938f791",
+      "bytes": 263
+    },
+    {
+      "path": ".vscode/settings.json",
+      "sha256": "46e1e835eb52f8ab3a9aa773ca5bb9fb4627038032b6589acb7354fc863df499",
+      "bytes": 855
+    }
+  ]
+}

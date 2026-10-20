@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "tombi-toml.tombi",
+        "hverlin.mise-vscode",
+        "redhat.vscode-yaml",
+        "owenlamont.ryl",
+        "void-zero.vite-plus-extension-pack",
+        "astro-build.astro-vscode",
+        "svelte.svelte-vscode"
+    ]
+}

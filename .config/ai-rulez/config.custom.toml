@@ -1,0 +1,24 @@
+[profiles]
+custom = ["custom"]
+
+[[installed_skills]]
+name = "shadcn-svelte"
+source = "https://github.com/huntabyte/shadcn-svelte"
+trust = "warn"
+include = ["*"]
+domain = "custom"
+
+[[installed_skills]]
+name = "taste-skill"
+source = "https://github.com/Leonxlnx/taste-skill"
+trust = "warn"
+include = ["*"]
+exclude = ["taste-skill-v*"]
+domain = "custom"
+
+[[mcp_servers]]
+name = "keenable"
+transport = "http"
+url = "https://api.keenable.ai/mcp"
+headers = { "X-API-Key" = "${KEENABLE_API_KEY}" }
+domain = "custom"

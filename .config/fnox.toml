@@ -1,0 +1,10 @@
+[daemon]
+enabled = true
+
+[providers.protonpass]
+type = "proton-pass"
+vault = "dev"
+
+[secrets]
+"KEENABLE_API_KEY" = { provider = "protonpass", value = "website/keenable-api-key" }
+"FNOX_GITHUB_TOKEN" = { provider = "protonpass", value = "website/github-pat" }

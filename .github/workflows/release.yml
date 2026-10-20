@@ -1,0 +1,65 @@
+---
+# yamllint disable rule:line-length
+name: Release
+"on":
+  push:
+    tags:
+      - v*
+concurrency:
+  group: release
+  cancel-in-progress: false
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  check:
+    name: Release check (full scope)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1 ~keep
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install tools
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8  # v5.1.2 ~keep
+        with:
+          cache: false
+      - name: Install
+        run: mise install
+      - name: Check (full scope)
+        run: mise run check:all
+  release:
+    name: Release (build once)
+    needs: check
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: write  # goreleaser publishes releases ~keep
+      id-token: write  # provenance attestation via OIDC ~keep
+      attestations: write  # provenance attestation write ~keep
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1 ~keep
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install tools
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8  # v5.1.2 ~keep
+        with:
+          cache: false
+      - name: Install
+        run: mise install
+      - name: Release
+        run: mise run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # yamllint disable rule:line-length
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2 ~keep
+      # yamllint enable rule:line-length
+        with:
+          subject-path: dist/checksums.txt

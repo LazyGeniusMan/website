@@ -1,0 +1,2 @@
+env = ["core", "ai", "typescript", "astro", "svelte", "github", "cloudflare", "custom"]
+auto_env = true

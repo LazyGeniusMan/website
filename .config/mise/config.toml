@@ -1,0 +1,105 @@
+min_version = "2026.10.4"
+
+[settings]
+lockfile = true
+experimental = true
+
+[env]
+PROXY_URI = "{{ env?.VSCODE_PROXY_URI or 'http://localhost:{{port}}' }}"
+HK_MISE = 1
+HK_PROFILE = "{{ mise_env | default(value=[]) | join(sep=',') }}"
+PITCHFORK_WEB_PORT = 3120
+
+[tools]
+betterleaks = "1"
+fnox = "1"
+hk = "2"
+pitchfork = "2"
+pkl = "0"
+shellcheck = "0"
+shellharden = "4"
+shfmt = "3"
+tombi = "1"
+updatecli = "0"
+
+[daemons.fnox]
+run = "exec fnox daemon start"
+
+[tasks."check:all"]
+description = "Full-tree check-only gate for main and scheduled CI"
+run = "hk check --all"
+
+[tasks."check:diff"]
+description = "Diff-scoped check-only gate for working tree locally"
+run = "hk check"
+
+[tasks."check:pr"]
+description = "Branch-diff check-only gate for pull request CI"
+run = "hk check --from-ref origin/main --to-ref HEAD"
+
+[tasks."fix:all"]
+description = "Full-tree deterministic auto-fix locally"
+run = "hk fix --all"
+
+[tasks."fix:diff"]
+description = "Diff-scoped deterministic auto-fix locally"
+run = "hk fix"
+
+[tasks."pre-commit:all"]
+description = "Full-tree pre-commit hook scope"
+run = "hk run pre-commit --all"
+
+[tasks."pre-commit:diff"]
+description = "Staged diff pre-commit hook scope"
+run = "hk run pre-commit"
+
+[tasks."pre-push:all"]
+description = "Full-tree pre-push hook scope"
+run = "hk run pre-push --all"
+
+[tasks."pre-push:diff"]
+description = "Changed-file pre-push hook scope"
+run = "hk run pre-push"
+
+[tasks."updatecli:check"]
+secrets = ["FNOX_GITHUB_TOKEN"]
+env = { "UPDATECLI_GITHUB_TOKEN" = "{{ secrets.FNOX_GITHUB_TOKEN }}" }
+run = "updatecli pipeline diff --config .config/updatecli/"
+
+[tasks."updatecli:apply"]
+secrets = ["FNOX_GITHUB_TOKEN"]
+env = { "UPDATECLI_GITHUB_TOKEN" = "{{ secrets.FNOX_GITHUB_TOKEN }}" }
+run = "updatecli pipeline apply --config .config/updatecli/"
+
+[tasks.release]
+run = "goreleaser release --clean"
+
+[tasks."turutan:diff"]
+description = "Show template drift for this project"
+run = "turutan diff"
+
+[tasks."turutan:check"]
+description = "Check whether the template has updates"
+run = "turutan check"
+
+[tasks."turutan:update"]
+description = "Merge template updates into this project"
+run = "turutan update"
+
+[tasks."turutan:state-sync"]
+description = "Re-render hand-edited state inputs at the pinned commit"
+run = "turutan state sync"
+
+[tasks."turutan:state-input"]
+description = "Re-answer stored inputs and re-render at the pinned commit"
+run = "turutan state input"
+
+[tasks."dev-setup:hk"]
+run = "hk install --mise"
+
+[tasks."dev-setup:fnox"]
+depends = "dev-setup:fnox-provider"
+daemons = "fnox"
+run = "fnox daemon start"
+
+[secrets.fnox]

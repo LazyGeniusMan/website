@@ -1,0 +1,2 @@
+[tools]
+"npm:cf" = { version = "v1", prerelease = true }

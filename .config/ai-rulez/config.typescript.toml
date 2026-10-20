@@ -1,0 +1,5 @@
+[profiles]
+typescript = [
+  "typescript",
+  "builtin:typescript",
+]

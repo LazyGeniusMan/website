@@ -1,0 +1,27 @@
+---
+import * as Card from "$lib/components/ui/card/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
+
+interface Props {
+  title: string;
+  caption?: string;
+}
+
+const { title, caption } = Astro.props;
+---
+
+<Card.Root data-motion class="rounded-none min-w-0 max-w-full">
+  <Card.Header>
+    <Card.Title class="text-lg">{title}</Card.Title>
+    {caption && <Card.Description>{caption}</Card.Description>}
+  </Card.Header>
+  <Card.Content class="min-w-0 max-w-full">
+    <div class="record-wrap min-w-0 max-w-full">
+    <Table.Root>
+      <Table.Body>
+        <slot />
+      </Table.Body>
+    </Table.Root>
+    </div>
+  </Card.Content>
+</Card.Root>

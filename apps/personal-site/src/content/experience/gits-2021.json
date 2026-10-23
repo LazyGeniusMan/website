@@ -1,0 +1,28 @@
+{
+  "roleName": "Implementation Team",
+  "description": "Conducted interviews and analyzed documents to gather user requirements for an Enterprise Resource Planning (ERP) system.",
+  "startDate": "2021-08",
+  "endDate": "2021-12",
+  "worksFor": "gits-indonesia",
+  "skills": ["information-systems", "business-process-management", "sql"],
+  "jobLocation": "Bandung, Indonesia",
+  "employmentType": "INTERN",
+  "relatedProjects": ["gits-erp-implementation-2021"],
+  "heroImage": "../../assets/logo-gits-indonesia.png",
+  "occupation": {
+    "name": "Implementation Team",
+    "description": "Enterprise Resource Planning (ERP) implementation support: requirements, data modeling, wireframes, Software Requirement Specification (SRS), Standard Operating Procedure (SOP), and verification.",
+    "responsibilities": [
+      "Conducted interviews and analyzed documents to gather user requirements for the development of an Enterprise Resource Planning (ERP) system.",
+      "Created detailed business process documentation using flowchart diagrams.",
+      "Collaborated with back-end developers to design a relational database for the ERP system using entity-relationship diagrams.",
+      "Coordinated with front-end developers to create wireframes for system interfaces.",
+      "Collaborated with technical writers to develop the Software Requirement Specification (SRS) document.",
+      "Developed a Standard Operating Procedure (SOP) for ERP usage.",
+      "Verified the developed ERP system with users to ensure alignment with business processes and user requirements.",
+      "Prepared a comprehensive Functional Specifications Document (FSD)."
+    ],
+    "skillsNote": "ERP requirements, flowcharting, ERD, wireframes, SRS, SOP, FSD.",
+    "skills": ["information-systems", "business-process-management", "sql"]
+  }
+}

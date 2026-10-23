@@ -1,0 +1,25 @@
+{
+  "roleName": "Teaching Assistant for Business Process Management Course",
+  "description": "Provided guidance and supervision to a teaching assistant regarding server administration and business process automation implementation.",
+  "startDate": "2023-02",
+  "endDate": "2023-07",
+  "worksFor": "feb-unpad",
+  "skills": ["business-process-management", "bpmn"],
+  "jobLocation": "Bandung, Indonesia",
+  "employmentType": "CONTRACTOR",
+  "relatedProjects": ["processmaker-vps-2022"],
+  "heroImage": "../../assets/logo-feb-unpad.png",
+  "occupation": {
+    "name": "Teaching Assistant for Business Process Management Course",
+    "description": "Supervision of BPM automation projects and server administration.",
+    "responsibilities": [
+      "Provided guidance and supervision to a teaching assistant regarding server administration and business process automation implementation.",
+      "Guided students in the successful execution of their business process automation projects.",
+      "Reviewed student automation models for alignment with coursework requirements and guided corrections where models diverged.",
+      "Monitored the multi-instance ProcessMaker VPS during the teaching term, keeping student environments available for project work.",
+      "Coordinated server maintenance duties with the supervised teaching assistant so instance issues were resolved without disrupting classes."
+    ],
+    "skillsNote": "Business process automation, server administration.",
+    "skills": ["business-process-management", "bpmn"]
+  }
+}

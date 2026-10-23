@@ -1,0 +1,128 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Section from "../components/Section.astro";
+import ThumbPlaceholder from "../components/ThumbPlaceholder.astro";
+import { Image, getImage } from "astro:assets";
+import { abs, breadcrumbNode, collectionPageNode, definedTermSetNode, personRefNode, resolveSiteUrl, toGraph } from "../lib/jsonld";
+import Filter from "../components/islands/Filter.svelte";
+import { toAtsSlug } from "../lib/collections";
+import { SKILLS_PAGE_SIZE, SKILLS_PATH, getSkillThumbSources, getSkillsList } from "../lib/lists/skills";
+
+const { skillsAll, groups, items, catOf, profOf, relatedOf, countsOf } =
+  await getSkillsList();
+const thumbSources = await getSkillThumbSources(skillsAll);
+const itemsWithThumbs = await Promise.all(
+  items.map(async (item) => {
+    const source = thumbSources.get(item.id);
+    if (!source) return item;
+    const thumb = await getImage({ src: source.src, width: 128, format: "webp", quality: 70 });
+    return { ...item, thumbSrc: thumb.src, thumbAlt: source.alt };
+  }),
+);
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const graphNodes = toGraph([
+  collectionPageNode({
+    path: "/skills",
+    siteUrl,
+    name: "Skills",
+    description: "Technical and process skills used across projects and roles.",
+    items: skillsAll.map((s) => ({ name: s.data.name, url: abs(`/skills/${toAtsSlug(s.id)}`) })),
+  }),
+  definedTermSetNode({
+    siteUrl,
+    name: "Skills",
+    description: "Technical and process skills used across projects and roles.",
+  }),
+  personRefNode(siteUrl),
+  breadcrumbNode("/skills", [
+    { name: "Home", item: "/" },
+    { name: "Skills", item: "/skills" },
+  ]),
+]);
+---
+
+<Layout title="Skills" description="Technical and process skills used across projects and roles." graphNodes={graphNodes}>
+  <Section variant="sheet" labelledby="skills-heading">
+    <h1 id="skills-heading" class="display text-[clamp(3rem,1.6rem+7vw,7rem)]">Skills</h1>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">
+      Business Process Model and Notation (BPMN), Decision Model and Notation (DMN), and enterprise systems. Each links to the projects, roles, posts, and credentials that use it.
+    </p>
+  </Section>
+
+  <section id="skill-set" class="page-margin mt-10 scroll-mt-24 md:mt-14" aria-labelledby="skill-set-heading" data-motion>
+    <h2 id="skill-set-heading" class="sr-only">Skills</h2>
+    <div class="mt-4">
+      <Filter groups={groups} items={itemsWithThumbs} pageSize={SKILLS_PAGE_SIZE} label="Filter skills" view="results" client:visible />
+    </div>
+    <noscript>
+      <p class="mt-8 text-lg text-muted-foreground">
+        Filtering needs JavaScript, showing all {skillsAll.length} skills.
+      </p>
+      <ol class="mt-6 grid min-w-0 max-w-full grid-cols-[repeat(1,minmax(0,1fr))] gap-4 [overflow-wrap:anywhere] lg:grid-cols-[repeat(2,minmax(0,1fr))]">
+        {[...skillsAll].sort((a, b) => a.data.name.localeCompare(b.data.name)).map((s) => {
+          const rel = relatedOf(s);
+          const top = [...rel.projects.slice(0, 1), ...rel.roles.slice(0, 1), ...rel.posts.slice(0, 1), ...rel.credentials.slice(0, 1), ...rel.education.slice(0, 1)].slice(0, 3);
+          const source = thumbSources.get(s.id);
+          return (
+          <li class="w-full min-w-0 max-w-full">
+            <div class="flex min-w-0 max-w-full flex-wrap items-start gap-4 [overflow-wrap:anywhere]">
+              {source ? (
+                <Image
+                  src={source.src}
+                  width={128}
+                  format="webp"
+                  quality={70}
+                  alt={source.alt}
+                  loading="lazy"
+                  decoding="async"
+                  class="size-16 flex-none object-cover"
+                />
+              ) : (
+                <ThumbPlaceholder name={s.data.name} />
+              )}
+              <div class="min-w-0 max-w-full flex-1">
+            <h3 class="text-xl font-medium">
+              <a class="hover:text-primary hover:underline" href={`/skills/${toAtsSlug(s.id)}`}>{s.data.name}</a>
+            </h3>
+            <p class="mt-1 text-lg">{(s.data.description ?? s.data.name).slice(0, 140)}</p>
+            <p class="text-base tabular-nums text-muted-foreground">{[catOf(s), profOf(s)].filter(Boolean).join(" · ")}</p>
+            {countsOf(s) && <p class="text-base tabular-nums text-muted-foreground">{countsOf(s)}</p>}
+            {top.length > 0 && (
+              <p class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-base">
+                {top.map((t) => (
+                  <a class="text-primary underline underline-offset-4" href={t.href}>{t.label}</a>
+                ))}
+              </p>
+            )}
+              </div>
+            </div>
+          </li>
+          );
+        })}
+      </ol>
+    </noscript>
+  </section>
+
+  <div slot="secondary">
+    <Filter groups={groups} pageSize={SKILLS_PAGE_SIZE} label="Filter skills" view="controls" client:only="svelte" />
+    <noscript>
+      <p class="text-lg font-medium">Filters</p>
+      <p class="mt-2 text-base text-muted-foreground">
+        Filtering needs JavaScript. Browse by connection below.
+      </p>
+      {groups.map((g) => (
+        <div class="mt-6">
+          <p class="text-base font-medium">{g.label}</p>
+          <ul class="mt-2 flex flex-col gap-2">
+            {g.options.map((o) => (
+              <li>
+                <a class="text-primary underline underline-offset-4" href={`${SKILLS_PATH}?${g.key}=${o.id}`}>{o.label}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </noscript>
+  </div>
+</Layout>

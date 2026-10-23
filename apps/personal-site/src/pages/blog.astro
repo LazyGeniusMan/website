@@ -1,0 +1,102 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Section from "../components/Section.astro";
+import { getImage } from "astro:assets";
+import { abs, blogIndexNode, breadcrumbNode, imageIdOf, imageObjectNode, personRefNode, resolveSiteUrl, toGraph } from "../lib/jsonld";
+import Filter from "../components/islands/Filter.svelte";
+import { readingTime, toAtsSlug } from "../lib/collections";
+import { BLOG_PAGE_SIZE, BLOG_PATH, blogDateBounds, blogMonthYear, getBlogList, getBlogThumbSources } from "../lib/lists/blog";
+
+const { posts, groups, items } = await getBlogList();
+const thumbSources = await getBlogThumbSources(posts);
+const itemsWithThumbs = await Promise.all(
+  items.map(async (item) => {
+    const source = thumbSources.get(item.id);
+    if (!source) return item;
+    const thumb = await getImage({ src: source.src, width: 128, format: "webp", quality: 60 });
+    return { ...item, thumbSrc: thumb.src, thumbAlt: source.alt };
+  }),
+);
+const { dateMin, dateMax } = blogDateBounds(items);
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const blogFigureNode = imageObjectNode({ id: `${siteUrl}/favicon.svg#image`, url: `${siteUrl}/favicon.svg` });
+const blogFigureId = imageIdOf(blogFigureNode);
+const graphNodes = toGraph([
+  blogIndexNode({
+    path: "/blog",
+    siteUrl,
+    name: "Blog",
+    description: "Notes on process: Business Process Model and Notation (BPMN), accounting systems, and automation from real engagements.",
+    items: posts.map((p) => ({ name: p.data.title, url: abs(`/blog/${toAtsSlug(p.id)}`) })),
+    ...(blogFigureId ? { extra: { primaryImageOfPage: { "@id": blogFigureId } } } : {}),
+  }),
+  personRefNode(siteUrl),
+  ...(blogFigureNode ? [blogFigureNode] : []),
+  breadcrumbNode("/blog", [
+    { name: "Home", item: "/" },
+    { name: "Blog", item: "/blog" },
+  ]),
+]);
+---
+
+<Layout
+  title="Blog"
+  description="Notes on process: Business Process Model and Notation (BPMN), accounting systems, and automation from real engagements."
+  graphNodes={graphNodes}
+>
+  <Section variant="sheet" labelledby="blog-heading">
+    <h1 id="blog-heading" class="display text-[clamp(3rem,1.6rem+7vw,7rem)]">Blog</h1>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">
+      Notes on process: Business Process Model and Notation (BPMN), accounting systems, and automation from real engagements.
+    </p>
+  </Section>
+
+  <section id="posts" class="page-margin mt-10 scroll-mt-24 md:mt-14" aria-labelledby="posts-heading" data-motion>
+    <h2 id="posts-heading" class="sr-only">Blog posts</h2>
+    <div class="mt-4">
+      <Filter groups={groups} items={itemsWithThumbs} pageSize={BLOG_PAGE_SIZE} label="Filter blog" dateLabel="Published date" dateMin={dateMin} dateMax={dateMax} view="results" client:visible />
+    </div>
+    <noscript>
+      <p class="mt-8 text-lg text-muted-foreground">
+        Filtering needs JavaScript. Showing all {posts.length} posts.
+      </p>
+      <ol class="mt-2 list-none p-0">
+        {posts.map((p) => (
+          <li class="mt-6 first:mt-0">
+            <a class="ledger-row min-w-0" href={`/blog/${toAtsSlug(p.id)}`} aria-label={p.data.title}>
+              <span class="min-w-0 text-xl font-medium break-words md:text-2xl">{p.data.title}</span>
+              <span class="ledger-detail min-w-0 text-lg break-words">{p.data.description}</span>
+              <span class="min-w-0 text-base tabular-nums text-muted-foreground md:justify-self-end">
+                <time datetime={p.data.pubDate.toISOString()}>{blogMonthYear(p.data.pubDate)}</time>
+                <span aria-hidden="true"> · </span>{readingTime(p.body ?? "")} min
+              </span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </noscript>
+  </section>
+
+  <div slot="secondary">
+    <Filter groups={groups} pageSize={BLOG_PAGE_SIZE} label="Filter blog" dateLabel="Published date" dateMin={dateMin} dateMax={dateMax} view="controls" client:only="svelte" />
+    <noscript>
+      <p class="text-lg font-medium">Filters</p>
+      <p class="mt-2 text-base text-muted-foreground">
+        Filtering needs JavaScript. Browse by connection below.
+      </p>
+      {groups.map((g) => (
+        <div class="mt-6">
+          <p class="text-base font-medium">{g.label}</p>
+          <ul class="mt-2 flex flex-col gap-2">
+            {g.options.map((o) => (
+              <li>
+                <a class="text-primary underline underline-offset-4" href={`${BLOG_PATH}?${g.key}=${o.id}`}>{o.label}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </noscript>
+  </div>
+</Layout>

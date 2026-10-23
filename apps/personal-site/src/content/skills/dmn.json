@@ -1,0 +1,9 @@
+{
+  "name": "DMN",
+  "alternateName": "Decision Model and Notation",
+  "description": "Decision Model and Notation for testable business rules.",
+  "proficiencyLevel": "expert",
+  "category": "Process",
+  "url": "https://www.omg.org/spec/DMN",
+  "sameAs": ["https://en.wikipedia.org/wiki/Decision_Model_and_Notation"]
+}

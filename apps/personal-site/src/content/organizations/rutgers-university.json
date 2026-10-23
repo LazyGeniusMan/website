@@ -1,0 +1,9 @@
+{
+  "name": "Rutgers University",
+  "alternateName": "Rutgers",
+  "description": "Public research university in New Jersey, United States.",
+  "type": "CollegeOrUniversity",
+  "url": "https://www.rutgers.edu/",
+  "logo": "../../assets/logo-rutgers-university.png",
+  "sameAs": ["https://www.linkedin.com/school/rutgersu"]
+}

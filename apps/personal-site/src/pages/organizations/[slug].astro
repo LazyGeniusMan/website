@@ -1,0 +1,459 @@
+---
+import { getCollection, getEntry } from "astro:content";
+import { Image, getImage } from "astro:assets";
+import Layout from "../../layouts/Layout.astro";
+import TocNav from "$lib/components/islands/TocNav.svelte";
+import DetailRelations from "../../components/DetailRelations.astro";
+import OrgMark from "../../components/OrgMark.astro";
+import CertFigures from "../../components/CertFigures.astro";
+import FactTable from "../../components/FactTable.astro";
+import Section from "../../components/Section.astro";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import { Button } from "$lib/components/ui/button/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
+import { breadcrumbNode, heroImageNode, imageIdOf, organizationNode, personRefNode, resolveSiteUrl, toGraph, webpageDetailNode } from "../../lib/jsonld";
+import { getChildOrgs, getCredentialsForOrg, getEducationForOrg, getExperienceForOrg, getProjectsForOrg, orgSlugOf, orgStemOf, toAtsSlug } from "../../lib/collections";
+import { ORG_LOGO_BY_STEM } from "../../lib/orgLogos";
+
+export async function getStaticPaths() {
+  const all = await getCollection("organizations");
+  return all.map((o) => ({ params: { slug: toAtsSlug(o.id) } }));
+}
+
+const { slug } = Astro.params;
+const orgsAll = await getCollection("organizations");
+const entry = orgsAll.find((o) => toAtsSlug(o.id) === slug);
+if (!entry) return Astro.redirect("/404");
+
+const parentRef = entry.data.parentOrganization as unknown as { id: string } | string | undefined;
+let parent: { id: string; data: { name: string; type?: "Organization" | "CollegeOrUniversity" | "EducationalOrganization"; alternateName?: string; url?: string; logo?: string; sameAs?: string[] } } | null = null;
+if (parentRef) {
+  try {
+    parent = (await getEntry(parentRef as never)) as unknown as {
+      id: string;
+      data: {
+        name: string;
+        type?: "Organization" | "CollegeOrUniversity" | "EducationalOrganization";
+        alternateName?: string;
+        url?: string;
+        logo?: string;
+        sameAs?: string[];
+      };
+    } | null;
+  } catch (e) {
+    throw new Error(`organizations/${entry.id}: unresolvable parentOrganization ref`, { cause: e });
+  }
+  if (!parent) throw new Error(`organizations/${entry.id}: dangling parentOrganization ref`);
+}
+const parentStem = parentRef
+  ? ((typeof parentRef === "string" ? parentRef : parentRef.id).split("/").pop() ?? "")
+  : "";
+const deptRaw = entry.data.department as unknown as string | { name: string } | undefined;
+const deptName = typeof deptRaw === "string" ? deptRaw : (deptRaw?.name ?? "");
+
+const children = await getChildOrgs(entry);
+const roles = await getExperienceForOrg(entry.id);
+const projects = await getProjectsForOrg(entry.id);
+const credentials = await getCredentialsForOrg(entry.id);
+const education = await getEducationForOrg(entry.id);
+
+const TYPE_LABELS: Record<string, string> = {
+  Organization: "Organization",
+  CollegeOrUniversity: "College or university",
+  EducationalOrganization: "Faculty or school",
+};
+const typeLabel = (t?: string): string => (t && TYPE_LABELS[t]) || t || "Organization";
+const hostOf = (url: string): string => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+};
+
+const sortedOrgs = [...orgsAll].sort((a, b) => a.data.name.localeCompare(b.data.name));
+const orgIdx = sortedOrgs.findIndex((o) => o.id === entry.id);
+const prevOrg = orgIdx > 0 ? sortedOrgs[orgIdx - 1] : null;
+const nextOrg = orgIdx >= 0 && orgIdx < sortedOrgs.length - 1 ? sortedOrgs[orgIdx + 1] : null;
+
+const data = entry.data;
+
+const entryStem = orgStemOf(entry.id);
+const entryLogo = (data as { logo?: unknown }).logo ?? null;
+const bundledLogo = (ORG_LOGO_BY_STEM as Record<string, unknown>)[entryStem] ?? null;
+const heroSrc = (((data as { heroImage?: unknown }).heroImage ?? entryLogo ?? bundledLogo ?? null) as never | null);
+const heroIsLogo = !(data as { heroImage?: unknown }).heroImage && !!(entryLogo ?? bundledLogo);
+
+const heroVariant = heroSrc
+  ? await getImage({ src: heroSrc, width: 640, quality: 55, format: "webp" })
+  : null;
+const imageNode = heroImageNode({
+  heroImage: heroVariant,
+  heroCredit: data.heroCredit,
+  heroSource: data.heroSource,
+  pagePath: `/organizations/${slug}`,
+});
+const imageId = imageIdOf(imageNode);
+
+const gallerySrcs = (((data as { images?: unknown }).images ?? []) as never[]).filter(Boolean);
+const galleryVariants = await Promise.all(
+  gallerySrcs.map((src) => getImage({ src, width: 640, quality: 55, format: "webp" })),
+);
+const galleryNodes = galleryVariants
+  .map((variant) =>
+    heroImageNode({
+      heroImage: variant,
+      heroCredit: data.heroCredit,
+      heroSource: data.heroSource,
+      pagePath: `/organizations/${slug}`,
+    }),
+  )
+  .filter((n) => !!n);
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const canonical = `/organizations/${slug}`;
+const graphNodes = toGraph([
+  organizationNode({
+    slug: slug as string,
+    siteUrl,
+    type: entry.data.type,
+    name: entry.data.name,
+    ...(entry.data.alternateName ? { alternateName: entry.data.alternateName } : {}),
+    ...(entry.data.description ? { description: entry.data.description } : {}),
+    ...(entry.data.url ? { url: entry.data.url } : {}),
+    ...(entry.data.logo ? { logo: entry.data.logo } : {}),
+    ...(entry.data.sameAs?.length ? { sameAs: [...entry.data.sameAs] } : {}),
+    ...(parentStem ? { parentStem } : {}),
+    ...(deptName ? { department: deptName } : {}),
+  }),
+  ...(parent
+    ? [
+        organizationNode({
+          slug: parentStem,
+          siteUrl,
+          type: parent.data.type ?? "Organization",
+          name: parent.data.name,
+          ...(parent.data.alternateName ? { alternateName: parent.data.alternateName } : {}),
+          ...(parent.data.url ? { url: parent.data.url } : {}),
+          ...(parent.data.logo ? { logo: parent.data.logo } : {}),
+        }),
+      ]
+    : []),
+  ...children.map((c) =>
+    organizationNode({
+      slug: orgStemOf(c.id),
+      siteUrl,
+      type: c.data.type,
+      name: c.data.name,
+      ...(c.data.alternateName ? { alternateName: c.data.alternateName } : {}),
+      ...(c.data.url ? { url: c.data.url } : {}),
+      ...(c.data.logo ? { logo: c.data.logo } : {}),
+    }),
+  ),
+  ...roles.map((r) => ({
+    "@type": "Occupation" as const,
+    "@id": `${siteUrl}/experience/${toAtsSlug(r.id)}#occupation`,
+    url: `${siteUrl}/experience/${toAtsSlug(r.id)}`,
+    name: r.data.occupation?.name ?? r.data.roleName,
+  })),
+  ...projects.map((p) => ({
+    "@type": p.data.type,
+    "@id": `${siteUrl}/projects/${toAtsSlug(p.id)}#project`,
+    url: `${siteUrl}/projects/${toAtsSlug(p.id)}`,
+    name: p.data.title,
+  })),
+  ...credentials.map((c) => ({
+    "@type": "EducationalOccupationalCredential" as const,
+    "@id": `${siteUrl}/certifications/${toAtsSlug(c.data.publicSlug ?? (c.id.split("/").pop() ?? c.id))}#credential`,
+    url: `${siteUrl}/certifications/${toAtsSlug(c.data.publicSlug ?? (c.id.split("/").pop() ?? c.id))}`,
+    name: c.data.name,
+  })),
+  ...education.map((e) => ({
+    "@type": "EducationalOccupationalCredential" as const,
+    "@id": `${siteUrl}/education/${toAtsSlug(e.data.publicSlug ?? (e.id.split("/").pop() ?? e.id))}#credential`,
+    url: `${siteUrl}/education/${toAtsSlug(e.data.publicSlug ?? (e.id.split("/").pop() ?? e.id))}`,
+    name: e.data.name,
+  })),
+  personRefNode(siteUrl),
+  webpageDetailNode(
+    canonical,
+    siteUrl,
+    entry.data.name,
+    imageId ? { primaryImageOfPage: { "@id": imageId } } : undefined,
+  ),
+  breadcrumbNode(canonical, [
+    { name: "Home", item: "/" },
+    { name: "Organizations", item: "/organizations" },
+    { name: entry.data.name, item: canonical },
+  ]),
+  ...(imageNode ? [imageNode] : []),
+  ...galleryNodes,
+]);
+---
+
+<Layout title={entry.data.name} description={entry.data.alternateName ? `${entry.data.name} (${entry.data.alternateName}), ${typeLabel(entry.data.type)}.` : `${entry.data.name}, ${typeLabel(entry.data.type)}.`} graphNodes={graphNodes} breadcrumb={[{ name: "Home", item: "/" }, { name: "Organizations", item: "/organizations" }, { name: entry.data.name }]}>
+  <div slot="secondary">
+    <TocNav
+      client:visible
+      items={[
+        { id: "hero", label: "Organization" },
+        ...(galleryVariants.length > 0 ? [{ id: "gallery", label: "Gallery" }] : []),
+        { id: "content", label: "Content" },
+        ...((children.length > 0 || roles.length > 0 || projects.length > 0 || education.length > 0 || credentials.length > 0 || parent) ? [{ id: "relations", label: "Relations" }] : []),
+        ...(credentials.length > 0 ? [{ id: "seals", label: "Seals" }] : []),
+        { id: "metadata", label: "Metadata" },
+      ]}
+    />
+  </div>
+  <Section variant="sheet" labelledby="org-heading">
+    <h1 id="org-heading" class="title-record mt-3 max-w-4xl text-balance">{entry.data.name}</h1>
+    {entry.data.description && (
+      <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">{entry.data.description}</p>
+    )}
+    <div class="mt-5 flex flex-wrap gap-2">
+      <Badge class="rounded-none text-sm" variant="secondary">{typeLabel(entry.data.type)}</Badge>
+      {entry.data.alternateName && <Badge class="rounded-none text-sm" variant="outline">{entry.data.alternateName}</Badge>}
+    </div>
+    {heroSrc ? (
+      <figure id="hero" class="mt-10 max-w-full min-w-0 scroll-mt-24" data-motion>
+        <Image
+          src={heroSrc}
+          width={640}
+          format="webp"
+          quality={55}
+          alt={`${entry.data.name} logo`}
+          loading="lazy"
+          decoding="async"
+          class={heroIsLogo ? "aspect-[21/9] w-full rounded-none object-contain object-center bg-card p-6" : "aspect-[21/9] w-full rounded-none object-cover object-center"}
+        />
+        {(data.heroCredit || data.heroSource) && <figcaption class="credit-line mt-2">{data.heroCredit}{data.heroSource && <> <a class="underline underline-offset-4" href={data.heroSource}>Source</a></>}</figcaption>}
+      </figure>
+    ) : (
+      <figure id="hero" class="mt-10 max-w-full min-w-0 scroll-mt-24" data-motion>
+        <div class="flex aspect-[21/9] w-full min-w-0 max-w-full items-center justify-center rounded-none">
+          <OrgMark name={entry.data.name} note={typeLabel(entry.data.type)} />
+        </div>
+        {(data.heroCredit || data.heroSource) && <figcaption class="credit-line mt-2">{data.heroCredit}{data.heroSource && <> <a class="underline underline-offset-4" href={data.heroSource}>Source</a></>}</figcaption>}
+      </figure>
+    )}
+    {galleryVariants.length > 0 && (
+      <Card.Root id="gallery" class="rounded-none mt-10 scroll-mt-24" data-motion>
+        <Card.Header>
+          <Card.Title class="text-lg"><h2 id="gallery-heading" class="text-lg font-medium">Gallery</h2></Card.Title>
+          <Card.Description>{galleryVariants.length} images.</Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <div class="grid gap-6 md:grid-cols-2">
+          {gallerySrcs.map((src, i) => (
+            <figure>
+              <Image
+                src={src as never}
+                width={640}
+                format="webp"
+                quality={55}
+                alt={`${entry.data.name} image ${i + 1}`}
+                loading="lazy"
+                decoding="async"
+                class="aspect-[21/9] w-full object-cover"
+              />
+              {(data.heroCredit || data.heroSource) && <figcaption class="credit-line mt-2">{data.heroCredit}{data.heroSource && <> <a class="underline underline-offset-4" href={data.heroSource}>Source</a></>}</figcaption>}
+            </figure>
+          ))}
+          </div>
+        </Card.Content>
+      </Card.Root>
+    )}
+    <div id="content" class="mt-10 scroll-mt-24" data-motion>
+      <Card.Root class="rounded-none">
+        <Card.Header>
+          <Card.Title class="text-lg"><h2 class="text-lg font-medium">Content</h2></Card.Title>
+          <Card.Description>{entry.data.name} in this site's metadata: {[roles.length ? `${roles.length} roles` : "", projects.length ? `${projects.length} projects` : "", credentials.length ? `${credentials.length} credentials` : "", education.length ? `${education.length} education entries` : "", children.length ? `${children.length} child organizations` : ""].filter(Boolean).join(" · ") || "A canonical entry."}</Card.Description>
+        </Card.Header>
+        <Card.Content class="max-w-[65ch]">
+          <p class="text-lg">{entry.data.description ?? `${entry.data.name}, ${typeLabel(entry.data.type)}.`}</p>
+        </Card.Content>
+      </Card.Root>
+    </div>
+    {(prevOrg || nextOrg) && (
+      <nav aria-label="More organizations" class="mt-10" data-motion>
+        <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:justify-between">
+          {prevOrg ? (
+            <Button rel="prev" variant="link" href={`/organizations/${toAtsSlug(prevOrg.id)}`} class="rounded-none h-auto max-w-md min-w-0 justify-start p-0 text-left text-lg whitespace-normal underline">
+              <span aria-hidden="true">← </span>{prevOrg.data.name}
+            </Button>
+          ) : <span />}
+          {nextOrg ? (
+            <Button rel="next" variant="link" href={`/organizations/${toAtsSlug(nextOrg.id)}`} class="rounded-none h-auto max-w-md min-w-0 justify-start p-0 text-left text-lg whitespace-normal underline sm:text-right">
+              {nextOrg.data.name}<span aria-hidden="true"> →</span>
+            </Button>
+          ) : <span />}
+        </div>
+      </nav>
+    )}
+    {(children.length > 0 || roles.length > 0 || projects.length > 0 || education.length > 0 || credentials.length > 0 || parent) && (
+      <DetailRelations
+        description="Every linked metadata for this organization."
+        groups={[
+          ...(children.length > 0 ? [{ label: "Sections", items: children.map((c) => ({ title: c.data.name, href: `/organizations/${orgSlugOf(c)}`, thumb: ((((c.data as { heroImage?: unknown }).heroImage ?? (c.data as { logo?: unknown }).logo ?? (ORG_LOGO_BY_STEM as Record<string, unknown>)[orgStemOf(c.id)] ?? null)) as never | null), thumbName: c.data.name })) }] : []),
+          ...(roles.length > 0 ? [{ label: "Work experience", items: roles.map((r) => ({ title: r.data.roleName, href: `/experience/${toAtsSlug(r.id)}`, meta: `${r.data.startDate}${r.data.endDate ? ` – ${r.data.endDate}` : " – Present"}`, thumb: ((((r.data as { heroImage?: unknown }).heroImage ?? (r.data as { logo?: unknown }).logo ?? heroSrc ?? null)) as never | null), thumbName: r.data.roleName })) }] : []),
+          ...(projects.length > 0 ? [{ label: "Projects", items: projects.map((pp) => ({ title: pp.data.title, href: `/projects/${toAtsSlug(pp.id)}`, meta: String(pp.data.pubDate.getFullYear()), thumb: ((((pp.data as { heroImage?: unknown }).heroImage ?? (pp.data as { logo?: unknown }).logo ?? heroSrc ?? null)) as never | null), thumbName: pp.data.title })) }] : []),
+          ...(education.length > 0 ? [{ label: "Education", items: education.map((e) => ({ title: e.data.name, href: `/education/${toAtsSlug(e.data.publicSlug ?? (e.id.split("/").pop() ?? e.id))}`, thumb: ((((e.data as { heroImage?: unknown }).heroImage ?? (e.data as { logo?: unknown }).logo ?? heroSrc ?? null)) as never | null), thumbName: e.data.name })) }] : []),
+          ...(credentials.length > 0 ? [{ label: "Certifications", items: credentials.map((c) => ({ title: c.data.name, href: `/certifications/${toAtsSlug(c.data.publicSlug ?? (c.id.split("/").pop() ?? c.id))}`, thumb: ((((c.data as { heroImage?: unknown }).heroImage ?? (c.data as { logo?: unknown }).logo ?? heroSrc ?? null)) as never | null), thumbName: c.data.name })) }] : []),
+          ...(parent ? [{ label: "Organizations", items: [{ title: parent.data.name, href: `/organizations/${toAtsSlug(parentStem)}`, thumb: ((parent.data.logo ?? null) as never | null), thumbName: parent.data.name }] }] : []),
+        ]}
+      />
+    )}
+    <p class="mt-8 flex flex-wrap gap-x-6 gap-y-1 text-lg">
+      <Button variant="link" href="/organizations" class="rounded-none h-auto p-0 text-lg underline">All organizations</Button>
+      <Button variant="link" href="/about" class="rounded-none h-auto p-0 text-lg underline">About Andriyansyah Nurrachman</Button>
+    </p>
+    {credentials.length > 0 && (
+      <Card.Root id="seals" class="rounded-none mt-10 scroll-mt-24" aria-labelledby="seals-heading" data-motion>
+        <Card.Header>
+          <Card.Title class="text-lg"><h2 id="seals-heading" class="text-lg font-medium">Certification seals</h2></Card.Title>
+          <Card.Description>{credentials.length} linked.</Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <CertFigures slugs={credentials.map((c) => c.data.publicSlug ?? (c.id.split("/").pop() ?? c.id))} />
+        </Card.Content>
+      </Card.Root>
+    )}
+    <Section variant="ledger" label="Metadata">
+    <section id="metadata" class="mt-10 scroll-mt-24" data-motion>
+      <FactTable title="Metadata" caption="Every field on this organization, with links to its relations.">
+        <Table.Row>
+          <Table.Cell class="w-36 align-top font-medium">Name</Table.Cell>
+          <Table.Cell>{entry.data.name}</Table.Cell>
+        </Table.Row>
+        {entry.data.alternateName && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Also known as</Table.Cell>
+            <Table.Cell>{entry.data.alternateName}</Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Type</Table.Cell>
+          <Table.Cell>{typeLabel(entry.data.type)}</Table.Cell>
+        </Table.Row>
+        {entry.data.description && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Description</Table.Cell>
+            <Table.Cell>{entry.data.description}</Table.Cell>
+          </Table.Row>
+        )}
+        {parent && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Part of</Table.Cell>
+            <Table.Cell>
+              <a class="text-primary underline underline-offset-4" href={`/organizations/${toAtsSlug(parentStem)}`}>{parent.data.name}</a>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {deptName && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Department</Table.Cell>
+            <Table.Cell>{deptName}</Table.Cell>
+          </Table.Row>
+        )}
+        {entry.data.url && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Website</Table.Cell>
+            <Table.Cell>
+              <a class="text-primary underline underline-offset-4" href={entry.data.url}>{hostOf(entry.data.url)}</a>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {(entry.data.sameAs?.length ?? 0) > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Same as</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-x-4 gap-y-1">
+                {(entry.data.sameAs ?? []).map((u) => (
+                  <a class="text-primary underline underline-offset-4" href={u}>{hostOf(u)}</a>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {(heroSrc || data.heroCredit || data.heroSource) && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Mark</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">Organization logo</span>{data.heroSource && <> <a class="text-primary underline underline-offset-4" href={data.heroSource}>Source</a></>}</Table.Cell>
+          </Table.Row>
+        )}
+        {gallerySrcs.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Gallery</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{gallerySrcs.length} {gallerySrcs.length === 1 ? "image" : "images"} below the hero</span></Table.Cell>
+          </Table.Row>
+        )}
+        {children.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Sections</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {children.map((c) => (
+                  <Badge class="rounded-none text-sm" href={`/organizations/${orgSlugOf(c)}`} variant="outline">{c.data.name}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {roles.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Experience</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {roles.map((r) => (
+                  <Badge class="rounded-none text-sm" href={`/experience/${toAtsSlug(r.id)}`} variant="outline">{r.data.roleName}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {projects.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Projects</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {projects.map((p) => (
+                  <Badge class="rounded-none text-sm" href={`/projects/${toAtsSlug(p.id)}`} variant="outline">{p.data.title}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {education.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Education</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {education.map((e) => (
+                  <Badge class="rounded-none text-sm" href={`/education/${toAtsSlug(e.data.publicSlug ?? (e.id.split("/").pop() ?? e.id))}`} variant="outline">{e.data.name}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {credentials.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Certifications</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {credentials.map((c) => (
+                  <Badge class="rounded-none text-sm" href={`/certifications/${toAtsSlug(c.data.publicSlug ?? (c.id.split("/").pop() ?? c.id))}`} variant="outline">{c.data.name}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Canonical</Table.Cell>
+          <Table.Cell><span class="text-muted-foreground">/organizations/{slug}</span></Table.Cell>
+        </Table.Row>
+      </FactTable>
+    </section>
+    </Section>
+  </Section>
+</Layout>

@@ -1,0 +1,127 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Section from "../components/Section.astro";
+import ThumbPlaceholder from "../components/ThumbPlaceholder.astro";
+import { Image, getImage } from "astro:assets";
+import { abs, breadcrumbNode, collectionPageNode, personRefNode, resolveSiteUrl, toGraph } from "../lib/jsonld";
+import Filter from "../components/islands/Filter.svelte";
+import { roleFallback, toAtsSlug, verificationLabel } from "../lib/collections";
+import { PROJECTS_PAGE_SIZE, PROJECTS_PATH, getProjectsList, getProjectThumbSources, projectMonthYear } from "../lib/lists/projects";
+
+const { cases, groups, items, projectCount, providerOf, partOfOf, skillNamesOf } = await getProjectsList();
+const thumbSources = await getProjectThumbSources(cases);
+const itemsWithThumbs = await Promise.all(
+  items.map(async (item) => {
+    const source = thumbSources.get(item.id);
+    if (!source) return item;
+    const thumb = await getImage({ src: source.src, width: 128, format: "webp", quality: 70 });
+    return { ...item, thumbSrc: thumb.src, thumbAlt: source.alt };
+  }),
+);
+// DateRangePicker bounds from work-period dates (startDate/dateCreated → endDate), like experience/blog lists.
+const dateValues = items.flatMap((i) => [i.date, i.dateEnd].filter((d): d is string => !!d)).sort();
+const dateMin = dateValues[0] ?? null;
+const dateMax = dateValues[dateValues.length - 1] ?? null;
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const graphNodes = toGraph([
+  collectionPageNode({
+    path: "/projects",
+    siteUrl,
+    name: "Projects",
+    description: `${projectCount} projects where the process model came first and the system followed.`,
+    items: cases.map((c) => ({ name: c.data.title, url: abs(`/projects/${toAtsSlug(c.id)}`) })),
+  }),
+  personRefNode(siteUrl),
+  breadcrumbNode("/projects", [
+    { name: "Home", item: "/" },
+    { name: "Projects", item: "/projects" },
+  ]),
+]);
+---
+
+<Layout
+  title="Projects"
+  description={`${projectCount} projects where the process model came first and the system followed.`}
+  graphNodes={graphNodes}
+>
+  <Section variant="sheet" labelledby="projects-heading">
+    <h1 id="projects-heading" class="display text-[clamp(2.5rem,1.2rem+5vw,5.5rem)]">Projects</h1>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">
+      {projectCount} projects where the process model came first and the system followed.
+    </p>
+  </Section>
+
+  <section id="engagements" class="page-margin mt-10 scroll-mt-24 md:mt-14" aria-labelledby="engagements-heading" data-motion>
+    <h2 id="engagements-heading" class="sr-only">Projects</h2>
+    <div class="mt-4">
+      <Filter groups={groups} items={itemsWithThumbs} pageSize={PROJECTS_PAGE_SIZE} label="Filter projects" dateLabel="Project dates" dateMin={dateMin} dateMax={dateMax} view="results" client:visible />
+    </div>
+    <noscript>
+      <p class="mt-8 text-lg text-muted-foreground">
+        Filtering needs JavaScript. Showing all {projectCount} projects.
+      </p>
+      <ol class="mt-6 grid min-w-0 max-w-full grid-cols-[repeat(1,minmax(0,1fr))] gap-4 [overflow-wrap:anywhere] lg:grid-cols-[repeat(2,minmax(0,1fr))]">
+        {cases.map((c) => {
+          const prov = providerOf(c) ?? partOfOf(c);
+          const langs = skillNamesOf(c);
+          const source = thumbSources.get(c.id);
+          return (
+            <li class="w-full min-w-0 max-w-full">
+              <div class="flex min-w-0 max-w-full flex-wrap items-start gap-4 [overflow-wrap:anywhere]">
+                {source ? (
+                  <Image
+                    src={source.src}
+                    width={128}
+                    format="webp"
+                    quality={70}
+                    alt={source.alt}
+                    loading="lazy"
+                    decoding="async"
+                    class="size-16 flex-none object-cover"
+                  />
+                ) : (
+                  <ThumbPlaceholder name={c.data.title} />
+                )}
+                <div class="min-w-0 max-w-full flex-1">
+              <h3 class="text-2xl font-medium">
+                <a class="hover:text-primary hover:underline" href={`/projects/${toAtsSlug(c.id)}`}>{c.data.title}</a>
+              </h3>
+              <p class="mt-1 text-lg">{c.data.outcome ?? c.data.description}</p>
+              <p class="text-base tabular-nums text-muted-foreground">{roleFallback(c.data.role)}{prov ? <> · <a class="text-primary underline underline-offset-4" href={`/organizations/${prov.stem}`}>{prov.name}</a></> : null} · <time datetime={c.data.pubDate.toISOString()}>{projectMonthYear(c.data.pubDate)}</time>{langs.length ? ` · ${langs.join(", ")}` : ""}{c.data.verificationStatus ? ` · ${verificationLabel(c.data.verificationStatus)}` : ""}</p>
+              <p class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-base text-muted-foreground">
+                {[...c.data.tags].slice(0, 3).map((t) => (
+                  <span>#{t}</span>
+                ))}
+              </p>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </noscript>
+  </section>
+
+  <div slot="secondary">
+    <Filter groups={groups} pageSize={PROJECTS_PAGE_SIZE} label="Filter projects" dateLabel="Project dates" dateMin={dateMin} dateMax={dateMax} view="controls" client:only="svelte" />
+    <noscript>
+      <p class="text-lg font-medium">Filters</p>
+      <p class="mt-2 text-base text-muted-foreground">
+        Filtering needs JavaScript. Browse by connection below.
+      </p>
+      {groups.map((g) => (
+        <div class="mt-6">
+          <p class="text-base font-medium">{g.label}</p>
+          <ul class="mt-2 flex flex-col gap-2">
+            {g.options.map((o) => (
+              <li>
+                <a class="text-primary underline underline-offset-4" href={`${PROJECTS_PATH}?${g.key}=${o.id}`}>{o.label}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </noscript>
+  </div>
+</Layout>

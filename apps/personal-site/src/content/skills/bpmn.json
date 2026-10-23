@@ -1,0 +1,9 @@
+{
+  "name": "BPMN",
+  "alternateName": "Business Process Model and Notation",
+  "description": "Business Process Model and Notation for executable process models",
+  "proficiencyLevel": "expert",
+  "category": "Process",
+  "url": "https://www.omg.org/spec/BPMN",
+  "sameAs": ["https://bpmn.io", "https://en.wikipedia.org/wiki/Business_Process_Model_and_Notation"]
+}

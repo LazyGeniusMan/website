@@ -1,0 +1,52 @@
+{
+  "name": "personal-site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Personal website. Astro SSG only, zero JS by default.",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "assets:fetch": "node scripts/fetch-assets.mjs && node scripts/fetch-assets.mjs --asset-dir ../../assets",
+    "assets:upload": "node scripts/fetch-assets.mjs --upload",
+    "prebuild": "node scripts/fetch-assets.mjs && node scripts/fetch-assets.mjs --asset-dir ../../assets",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test": "vitest run",
+    "check": "astro check",
+    "parity": "node scripts/parity.mjs",
+    "verify-dist": "node scripts/verify-dist.mjs",
+    "verify-ats": "node scripts/verify-ats.mjs",
+    "verify-jsonld-ids": "node scripts/verify-jsonld-ids.mjs",
+    "verify-jsonld-vocab": "node scripts/verify-jsonld-vocab.mjs",
+    "verify-redirects": "node scripts/verify-redirects.mjs",
+    "verify-jsonld-parity": "node scripts/verify-jsonld-parity.mjs",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/svelte": "catalog:",
+    "@lucide/svelte": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "astro": "catalog:",
+    "design-system": "workspace:*",
+    "svelte": "catalog:",
+    "tailwindcss": "catalog:",
+    "ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@astrojs/check": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:",
+    "ajv": "catalog:",
+    "ajv-formats": "catalog:",
+    "cf": "catalog:",
+    "node-html-parser": "catalog:",
+    "schema-dts": "catalog:",
+    "sharp": "catalog:",
+    "svelte-check": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

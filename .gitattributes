@@ -1,0 +1,6 @@
+apps/personal-site/src/assets/.assets-manifest.json text diff linguist-language=JSON
+assets/.assets-manifest.json text diff linguist-language=JSON
+*.webp binary
+*.avif binary
+*.jpg binary
+*.png binary

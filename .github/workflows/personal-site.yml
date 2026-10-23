@@ -1,0 +1,327 @@
+---
+# yamllint disable rule:line-length
+name: personal-site
+"on":
+  pull_request:
+  push:
+    branches:
+      - main
+concurrency:
+  group: personal-site-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  validate:
+    name: Validate (scoped to M1 tree)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1 ~keep
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install tools
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8  # v5.1.2 ~keep
+      - name: Install
+        run: mise install
+      - name: Node 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5 ~keep
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: vp install --frozen-lockfile
+      # Binary-asset remote storage: RAW originals are fetched, never ~keep
+      # committed. Cache is advisory; remote + manifest authorize. ~keep
+      - name: Cache raw assets
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0 ~keep
+        with:
+          path: |
+            apps/personal-site/src/assets
+            assets
+          key: assets-${{ runner.os }}-${{ hashFiles('apps/personal-site/src/assets/.assets-manifest.json', 'assets/.assets-manifest.json') }}
+          restore-keys: |
+            assets-${{ runner.os }}-
+      # Gap-fill + fail-closed verify ALWAYS run, even on cache hit. ~keep
+      - name: Fetch raw assets
+        working-directory: apps/personal-site
+        env:
+          RCLONE_CONFIG_R2_TYPE: ${{ secrets.RCLONE_CONFIG_R2_TYPE }}
+          RCLONE_CONFIG_R2_PROVIDER: ${{ secrets.RCLONE_CONFIG_R2_PROVIDER }}
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.RCLONE_CONFIG_R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.RCLONE_CONFIG_R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.RCLONE_CONFIG_R2_ENDPOINT }}
+          RCLONE_CONFIG_R2_REGION: ${{ secrets.RCLONE_CONFIG_R2_REGION }}
+          ASSET_REMOTE_PERSONAL: r2:websites/personal-site/assets
+          ASSET_REMOTE_ROOT: r2:website-assets/site-root
+        run: |
+          rclone version
+          node scripts/fetch-assets.mjs
+          node scripts/fetch-assets.mjs --asset-dir ../../assets
+          personal_remote="${ASSET_REMOTE_PERSONAL:-r2:websites/personal-site/assets}"
+          root_remote="${ASSET_REMOTE_ROOT:-r2:website-assets/site-root}"
+          # Manifest-as-truth: fetch uses manifest remote verbatim; this check must match it. ~keep
+          rclone check "$personal_remote" "src/assets" \
+            --config /dev/null --checksum --one-way --no-traverse \
+            --exclude .assets-manifest.json --exclude .gitkeep
+          rclone check "$root_remote" "../../assets" \
+            --config /dev/null --checksum --one-way --no-traverse \
+            --exclude .assets-manifest.json --exclude .gitkeep
+      # Fail-closed binary audits (foundation policy: untracked fetch-only, no ~keep
+      # manifest-covered tracking exception): no tracked binaries, no new large ~keep
+      # blobs, no remote image URLs, no widths+densities mixing. ~keep
+      - name: Audit (binaries, blobs, remote URLs, component misuse)
+        run: |
+          if git ls-files | grep -Ei '\.(webp|avif|jpe?g|png|pdf|mp4)$'; then
+            echo "tracked binaries present — RAW assets stay untracked, fetch via fetch-assets.mjs"; exit 1
+          fi
+          git rev-list --objects --no-merges origin/main..HEAD \
+            | git cat-file --batch-check='%(objectsize) %(objectname) %(objecttype) %(rest)' \
+            | awk '$3=="blob" && $1>524288 {print; bad=1} END{exit bad}'
+          if grep -rniE 'protondrive|proton\.me|rclone' apps/personal-site/src \
+            --include='*.astro' --include='*.ts'; then
+            echo "remote-storage URLs in src — pre-download via fetch-assets instead"; exit 1
+          fi
+          if grep -rn 'src="http' apps/personal-site/src --include='*.astro'; then
+            echo "remote image src — Astro remote images are fatal, pre-download"; exit 1
+          fi
+          misuse=0
+          while IFS= read -r f; do
+            if grep -q 'densities' "$f"; then
+              echo "widths+densities mixed in $f — pick one per component"; misuse=1
+            fi
+          done < <(grep -rl 'widths={' apps/personal-site/src --include='*.astro')
+          [ "$misuse" -eq 0 ] || exit 1
+      # Generates git-ignored .astro/ content types; vp check resolves ~keep
+      # astro:content, which does not exist on a fresh checkout. ~keep
+      - name: Sync (astro content types)
+        working-directory: apps/personal-site
+        run: vp exec astro sync
+      - name: Check (format, lint, type)
+        run: vp check package.json pnpm-workspace.yaml vite.config.ts tsconfig.json components.json apps packages tools
+      - name: Lint (oxlint)
+        run: vp lint package.json pnpm-workspace.yaml vite.config.ts tsconfig.json components.json apps packages tools
+      - name: Check (astro)
+        working-directory: apps/personal-site
+        run: vp exec astro check
+      - name: Check (svelte)
+        working-directory: packages/ui
+        run: vp exec svelte-check --tsconfig ./tsconfig.json
+      - name: Check (tsc)
+        working-directory: tools/generators
+        run: vp exec tsc --noEmit -p ./tsconfig.json
+      - name: Guard (SSG forbidden markers)
+        run: |
+          if grep -rHEn 'output:\s*"(server|hybrid)"|prerender\s*=\s*false|@astrojs/cloudflare' apps/personal-site \
+          --include='*.ts' --include='*.astro' --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.astro; then
+            exit 1
+          fi
+      - name: Guard (forbidden runners)
+        run: |
+          if grep -rHEn '(^|[\s;&|])(npx|bunx|wrangler)[\s]|(npm|pnpm|bun)[\s]+(install|run|exec|add|dlx|create|init|x)\b' \
+          package.json apps/personal-site/package.json packages/ui/package.json tools/generators/package.json \
+          .github/workflows/personal-site.yml; then
+            exit 1
+          fi
+      - name: Parity (collections, feeds gate, JSON-LD gate)
+        run: vp run personal-site#parity
+  build:
+    name: Build SSG
+    needs: [validate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1 ~keep
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install tools
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8  # v5.1.2 ~keep
+      - name: Install
+        run: mise install
+      - name: Node 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5 ~keep
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: vp install --frozen-lockfile
+      # Same RAW restore as validate: cache advisory, fetch fail-closed. ~keep
+      - name: Cache raw assets
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0 ~keep
+        with:
+          path: |
+            apps/personal-site/src/assets
+            assets
+          key: assets-${{ runner.os }}-${{ hashFiles('apps/personal-site/src/assets/.assets-manifest.json', 'assets/.assets-manifest.json') }}
+          restore-keys: |
+            assets-${{ runner.os }}-
+      - name: Fetch raw assets
+        working-directory: apps/personal-site
+        env:
+          RCLONE_CONFIG_R2_TYPE: ${{ secrets.RCLONE_CONFIG_R2_TYPE }}
+          RCLONE_CONFIG_R2_PROVIDER: ${{ secrets.RCLONE_CONFIG_R2_PROVIDER }}
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.RCLONE_CONFIG_R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.RCLONE_CONFIG_R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.RCLONE_CONFIG_R2_ENDPOINT }}
+          RCLONE_CONFIG_R2_REGION: ${{ secrets.RCLONE_CONFIG_R2_REGION }}
+          ASSET_REMOTE_PERSONAL: r2:websites/personal-site/assets
+          ASSET_REMOTE_ROOT: r2:website-assets/site-root
+        run: |
+          rclone version
+          node scripts/fetch-assets.mjs
+          node scripts/fetch-assets.mjs --asset-dir ../../assets
+          personal_remote="${ASSET_REMOTE_PERSONAL:-r2:websites/personal-site/assets}"
+          root_remote="${ASSET_REMOTE_ROOT:-r2:website-assets/site-root}"
+          # Manifest-as-truth: fetch uses manifest remote verbatim; this check must match it. ~keep
+          rclone check "$personal_remote" "src/assets" \
+            --config /dev/null --checksum --one-way --no-traverse \
+            --exclude .assets-manifest.json --exclude .gitkeep
+          rclone check "$root_remote" "../../assets" \
+            --config /dev/null --checksum --one-way --no-traverse \
+            --exclude .assets-manifest.json --exclude .gitkeep
+      - name: Build
+        run: vp run build
+      # Deployed HTML must not reference remote storage. ~keep
+      - name: Guard (no remote storage URLs in dist)
+        run: |
+          if grep -riE 'protondrive|rclone' apps/personal-site/dist; then
+            echo "remote storage URL in dist — build must optimize locally"; exit 1
+          fi
+      # Allowlist: ld+json + bare is:inline motion script; bans src/analytics/_worker.js. ~keep
+      - name: Guard (SSG output)
+        run: vp run personal-site#verify-dist
+      # ATS heading allowlist on /cv + /about; dangling-@id check over ~keep
+      # dist ld+json @graphs (node, not jq: CI image always has node 24). ~keep
+      - name: Lint (ATS headings)
+        run: vp run personal-site#verify-ats
+      - name: Lint (JSON-LD @ids)
+        run: vp run personal-site#verify-jsonld-ids
+      # M3 L4 vocab gate over dist ld+json (stdlib-only: ldlint and ~keep
+      # schemaorg-validate are unpublished, so this checker is the gate); ~keep
+      # fail-closed: no continue-on-error, gates deploy. ~keep
+      - name: Lint (JSON-LD vocab)
+        run: vp run personal-site#verify-jsonld-vocab
+      # Redirect/slug + feed parity over dist (public/_redirects must ~keep
+      # match dist, sitemap locs resolve); fail-closed: gates deploy. ~keep
+      - name: Lint (redirects)
+        run: vp run personal-site#verify-redirects
+      # JSON-LD parity over dist (one-script-per-page + canonical + ~keep
+      # top-level key gate); fail-closed: gates deploy. ~keep
+      - name: Lint (JSON-LD parity)
+        run: vp run personal-site#verify-jsonld-parity
+      # M3 L2/L3 vitest (builders + rendered-HTML contract); L3 reads ~keep
+      # dist, so it runs here after Build, fail-closed. ~keep
+      - name: Builders L2/L3 (vitest)
+        run: vp run personal-site#test
+  test:
+    name: Test
+    needs: [build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1 ~keep
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install tools
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8  # v5.1.2 ~keep
+      - name: Install
+        run: mise install
+      - name: Node 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5 ~keep
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: vp install --frozen-lockfile
+      # Unit tests: tools/generators builders (only suite in tree). ~keep
+      - name: Unit tests
+        run: vp test
+      # Fresh runner has no dist (git-ignored); rebuild, then verify the ~keep
+      # artifact deploy ships: budgets, link gate, freshness. ~keep
+      # Same RAW restore as validate: cache advisory, fetch fail-closed. ~keep
+      - name: Cache raw assets
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0 ~keep
+        with:
+          path: |
+            apps/personal-site/src/assets
+            assets
+          key: assets-${{ runner.os }}-${{ hashFiles('apps/personal-site/src/assets/.assets-manifest.json', 'assets/.assets-manifest.json') }}
+          restore-keys: |
+            assets-${{ runner.os }}-
+      - name: Fetch raw assets
+        working-directory: apps/personal-site
+        env:
+          RCLONE_CONFIG_R2_TYPE: ${{ secrets.RCLONE_CONFIG_R2_TYPE }}
+          RCLONE_CONFIG_R2_PROVIDER: ${{ secrets.RCLONE_CONFIG_R2_PROVIDER }}
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.RCLONE_CONFIG_R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.RCLONE_CONFIG_R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.RCLONE_CONFIG_R2_ENDPOINT }}
+          RCLONE_CONFIG_R2_REGION: ${{ secrets.RCLONE_CONFIG_R2_REGION }}
+          ASSET_REMOTE_PERSONAL: r2:websites/personal-site/assets
+          ASSET_REMOTE_ROOT: r2:website-assets/site-root
+        run: |
+          rclone version
+          node scripts/fetch-assets.mjs
+          node scripts/fetch-assets.mjs --asset-dir ../../assets
+          personal_remote="${ASSET_REMOTE_PERSONAL:-r2:websites/personal-site/assets}"
+          root_remote="${ASSET_REMOTE_ROOT:-r2:website-assets/site-root}"
+          # Manifest-as-truth: fetch uses manifest remote verbatim; this check must match it. ~keep
+          rclone check "$personal_remote" "src/assets" \
+            --config /dev/null --checksum --one-way --no-traverse \
+            --exclude .assets-manifest.json --exclude .gitkeep
+          rclone check "$root_remote" "../../assets" \
+            --config /dev/null --checksum --one-way --no-traverse \
+            --exclude .assets-manifest.json --exclude .gitkeep
+      - name: Build
+        run: vp run build
+      - name: Dist verify (budgets, links, freshness)
+        run: vp run personal-site#verify-dist
+      # Non-blocking: cf beta.18 cannot build Astro 7 SSG (upstream beta ~keep
+      # gap, no Build Output written). Keeps dry-run output ~keep
+      # visible on PRs until the gap closes; re-enable as required ~keep
+      # once cf ships Build Output support. ~keep
+      - name: Cloudflare deploy dry-run
+        working-directory: apps/personal-site
+        run: cf deploy --dry-run
+        continue-on-error: true
+  deploy:
+    name: Deploy
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: [test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1 ~keep
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install tools
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8  # v5.1.2 ~keep
+      - name: Install
+        run: mise install
+      - name: Node 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5 ~keep
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: vp install --frozen-lockfile
+      - name: Cloudflare deploy
+        working-directory: apps/personal-site
+        run: cf deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Deploy builds (prebuild fetch) so it needs the same RAW secrets. ~keep
+          RCLONE_CONFIG_R2_TYPE: ${{ secrets.RCLONE_CONFIG_R2_TYPE }}
+          RCLONE_CONFIG_R2_PROVIDER: ${{ secrets.RCLONE_CONFIG_R2_PROVIDER }}
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.RCLONE_CONFIG_R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.RCLONE_CONFIG_R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.RCLONE_CONFIG_R2_ENDPOINT }}
+          RCLONE_CONFIG_R2_REGION: ${{ secrets.RCLONE_CONFIG_R2_REGION }}

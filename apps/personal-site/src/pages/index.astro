@@ -1,0 +1,166 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { publishedPosts, publishedProjects } from "../lib/collections";
+import { getCollection } from "astro:content";
+import {
+  abs,
+  breadcrumbNode,
+  collectionPageNode,
+  personRefNode,
+  resolveSiteUrl,
+  toGraph,
+  websiteNode,
+} from "../lib/jsonld";
+import Section from "../components/Section.astro";
+import * as Table from "$lib/components/ui/table/index.js";
+import { Button } from "$lib/components/ui/button/index.js";
+import Icon from "../components/Icon.svelte";
+import ArrowRight from "@lucide/svelte/icons/arrow-right";
+import ArrowUpRight from "@lucide/svelte/icons/arrow-up-right";
+
+const skillsAll = await getCollection("skills");
+const orgsAll = await getCollection("organizations");
+const expAll = await getCollection("experience");
+const eduAll = await getCollection("education");
+const credsAll = await getCollection("credentials");
+const projects = await publishedProjects();
+const posts = await publishedPosts();
+const persons = await getCollection("person");
+const person = persons.find((p) => p.id === "andriyansyah") ?? persons[0];
+
+const items = [
+  {
+    href: "/about",
+    label: "Profile",
+    count: persons.length,
+    unit: "person",
+    detail: `${person?.data.name ?? "Andriyansyah Nurrachman"}, ${person?.data.jobTitle ?? "Business Process and Enterprise System Specialist"} in Bandung.`,
+  },
+  {
+    href: "/skills",
+    label: "Skills",
+    count: skillsAll.length,
+    unit: "topics",
+    detail: "Process, systems, and data topics used across roles and projects.",
+  },
+  {
+    href: "/experience",
+    label: "Work Experience",
+    count: expAll.length,
+    unit: "roles",
+    detail: "Business process modelling, ERP, and automation across freelance, startups, and campus.",
+  },
+  {
+    href: "/organizations",
+    label: "Organizations",
+    count: orgsAll.length,
+    unit: "orgs",
+    detail: "Employers, clients, and campuses behind the roles.",
+  },
+  {
+    href: "/education",
+    label: "Education",
+    count: eduAll.length,
+    unit: "degree",
+    detail: "Informatics degree entry with coursework and dates.",
+  },
+  {
+    href: "/certifications",
+    label: "Certifications",
+    count: credsAll.length,
+    unit: "credentials",
+    detail: "English proficiency and process credentials with verification.",
+  },
+  {
+    href: "/projects",
+    label: "Projects",
+    count: projects.length,
+    unit: "cases",
+    detail: "Process model first, system second. Selected delivery cases.",
+  },
+  {
+    href: "/blog",
+    label: "Blog",
+    count: posts.length,
+    unit: "notes",
+    detail: "Notes on process, accounting systems, and automation from real work.",
+  },
+];
+
+const recordItems = items.filter((d) => d.href !== "/about");
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const graphNodes = toGraph([
+  collectionPageNode({
+    path: "/",
+    siteUrl,
+    name: "Andriyansyah Nurrachman",
+    description:
+      "Andriyansyah Nurrachman is a Business Process and Enterprise System Specialist in Bandung. Browse skills, experience, organizations, education, certifications, projects, and blog notes.",
+    items: items.map((d) => ({ name: d.label, url: abs(d.href) })),
+  }),
+  websiteNode(),
+  personRefNode(siteUrl),
+  breadcrumbNode("/", [{ name: "Home", item: "/" }]),
+]);
+---
+
+<Layout
+  title="Andriyansyah Nurrachman"
+  description="Andriyansyah Nurrachman is a Business Process and Enterprise System Specialist in Bandung. Browse skills, experience, organizations, education, certifications, projects, and blog notes."
+  graphNodes={graphNodes}
+>
+  <Section variant="sheet" labelledby="home-heading">
+    <h1 id="home-heading" class="display max-w-full text-[clamp(2.5rem,11vw,11rem)]">
+      <span data-mask class="block"><span class="block">Andriyansyah</span></span>
+      <span data-mask class="block"><span class="block">Nurrachman</span></span>
+    </h1>
+    <div class="mt-10 min-w-0">
+      <p class="lead">
+        Business Process and Enterprise System Specialist in Bandung turning field notes into
+        BPMN models, ERP setups, and working systems.
+      </p>
+      <p class="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <Button href="/about" class="h-auto max-w-full min-h-11 rounded-none px-6 py-3 text-lg whitespace-normal">
+          View profile
+          <Icon of={ArrowRight} data-icon="inline-end" aria-hidden="true" />
+        </Button>
+        <a class="inline-flex min-h-11 items-center gap-2 text-lg underline underline-offset-4 hover:text-primary" href="/cv">
+          Read the CV
+          <Icon of={ArrowUpRight} data-icon="inline-end" aria-hidden="true" />
+        </a>
+      </p>
+    </div>
+  </Section>
+
+  <Section variant="ledger" label="Index">
+    <h2 id="index-heading" class="text-2xl font-medium md:text-3xl">Index</h2>
+    <p class="mt-3 max-w-3xl text-lg text-muted-foreground">
+      Seven sections, every entry counted. Each row links to its collection page.
+    </p>
+    <div class="record-wrap mt-8 min-w-0 max-w-full">
+      <Table.Root class="text-[clamp(1.25rem,1rem+2.4vw,1.875rem)] tabular-nums">
+        <Table.Body>
+          {recordItems.map((d) => (
+            <Table.Row class="align-baseline">
+              <Table.Cell class="w-[30%] py-5 pr-4 align-baseline font-medium">
+                <a class="underline-offset-4 hover:text-primary hover:underline" href={d.href}>
+                  {d.label}
+                </a>
+              </Table.Cell>
+              <Table.Cell class="py-5 pr-4 align-baseline text-muted-foreground">
+                {d.count} {d.unit}. {d.detail}
+              </Table.Cell>
+              <Table.Cell class="py-5 align-baseline text-right whitespace-nowrap">
+                <a class="inline-flex items-center gap-2 underline-offset-4 hover:text-primary hover:underline" href={d.href} aria-label={`Open ${d.label}`}>
+                  Open
+                  <Icon of={ArrowUpRight} data-icon="inline-end" aria-hidden="true" />
+                </a>
+              </Table.Cell>
+            </Table.Row>
+          ))}
+        </Table.Body>
+      </Table.Root>
+    </div>
+  </Section>
+</Layout>

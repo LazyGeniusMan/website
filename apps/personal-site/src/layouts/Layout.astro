@@ -1,0 +1,278 @@
+---
+import "design-system/base.css";
+import "../styles/site.css";
+import portraitSrc from "../assets/portrait.png";
+import { getImage } from "astro:assets";
+import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
+import { cn } from "$lib/utils.js";
+import SideNav from "$lib/components/islands/SideNav.svelte";
+import BottomNav from "$lib/components/islands/BottomNav.svelte";
+import SecondaryRail from "$lib/components/islands/SecondaryRail.svelte";
+import FabDrawer from "$lib/components/islands/FabDrawer.svelte";
+import ThemeToggle from "$lib/components/islands/ThemeToggle.svelte";
+import Icon from "../components/Icon.svelte";
+import GithubIcon from "../components/icons/GithubIcon.svelte";
+import LinkedinIcon from "../components/icons/LinkedinIcon.svelte";
+import InstagramIcon from "../components/icons/InstagramIcon.svelte";
+import Rss from "@lucide/svelte/icons/rss";
+import Mail from "@lucide/svelte/icons/mail";
+import JsonLd from "../components/JsonLd.astro";
+import type { Graph } from "schema-dts";
+import { SITE, WEBSITE_ID, toGraph, websiteNode } from "../lib/jsonld";
+
+interface BreadcrumbItem {
+  name: string;
+  item?: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  canonical?: string;
+  prev?: string;
+  next?: string;
+  ogImage?: string;
+  lang?: string;
+  graphNodes?: Graph["@graph"];
+  breadcrumb?: BreadcrumbItem[];
+}
+
+const { title, description, canonical, prev, next, ogImage, lang = "id", graphNodes, breadcrumb } = Astro.props;
+
+const hasWebsiteNode =
+  graphNodes?.some((n) => (n as { "@id": unknown })["@id"] === WEBSITE_ID) ?? false;
+const nodesWithWebsite =
+  graphNodes && !hasWebsiteNode
+    ? toGraph([...graphNodes, websiteNode()])
+    : graphNodes;
+const site = Astro.site?.toString().replace(/\/$/, "") ?? SITE;
+
+const normPath =
+  Astro.url.pathname.length > 1
+    ? Astro.url.pathname.replace(/\/$/, "")
+    : Astro.url.pathname;
+const pageUrl = canonical ?? `${site}${normPath}`;
+
+const ogDefault = await getImage({ src: portraitSrc, width: 800, quality: 70 });
+const og = ogImage ?? `${site}${ogDefault.src}`;
+const fullTitle = title === "Andriyansyah Nurrachman" ? title : `${title} - Andriyansyah Nurrachman`;
+const emailHref = "mailto:website@yansyah.my.id?subject=Hello%20Yansyah";
+const hasSecondary = Astro.slots.has("secondary");
+
+const primaryLinks = [
+  { href: "/about", label: "About" },
+  { href: "/experience", label: "Experience" },
+  { href: "/projects", label: "Projects" },
+  { href: "/blog", label: "Blog" },
+  { href: "/contact", label: "Contact" },
+];
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <script is:inline>
+      (() => {
+        try {
+          var saved = localStorage.getItem("yansyah-theme");
+          var pref =
+            saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
+          var mode =
+            pref === "system"
+              ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+              : pref;
+          if (mode === "dark") document.documentElement.classList.add("dark");
+          document.documentElement.style.colorScheme = mode;
+        } catch (e) { /* default light, no persistence */ }
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="canonical" href={pageUrl} />
+    {prev && <link rel="prev" href={`${site}${prev}`} />}
+    {next && <link rel="next" href={`${site}${next}`} />}
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={pageUrl} />
+    {og && <meta property="og:image" content={og} />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    {og && <meta name="twitter:image" content={og} />}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate" type="application/rss+xml" title="Andriyansyah Nurrachman - Blog" href="/rss.xml" />
+    <link rel="preconnect" href="https://api.fontshare.com" />
+    <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+    <link
+      href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,800&display=swap"
+      rel="stylesheet"
+    />
+    <title>{fullTitle}</title>
+    {nodesWithWebsite ? <JsonLd nodes={nodesWithWebsite} /> : null}
+  </head>
+  <body class="bg-background text-foreground antialiased">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div
+      class={cn(
+        "mx-auto w-full max-w-[110rem] lg:grid lg:grid-cols-[var(--shell-side-width)_minmax(0,1fr)]",
+        hasSecondary && "xl:grid-cols-[var(--shell-side-width)_minmax(0,1fr)_var(--shell-rail-width)]",
+      )}
+    >
+      <div class="shell-side hidden lg:flex lg:flex-col">
+        <SideNav currentPath={normPath} />
+        <div class="flex min-w-0 shrink-0 flex-col px-4 pb-6">
+          <ThemeToggle client:visible />
+        </div>
+      </div>
+      <div class="min-w-0">
+        <div class="shell-top flex items-center justify-between gap-2 px-4 py-3 sm:px-6 lg:hidden" data-motion>
+          <a href="/" class="display text-2xl" aria-label="Andriyansyah Nurrachman, home">
+            Yansyah
+          </a>
+          <div class="flex items-center gap-2">
+            <ThemeToggle client:visible />
+          </div>
+        </div>
+        {breadcrumb && breadcrumb.length > 0 && (
+          <div class="page-margin pt-4 sm:pt-6">
+            <Breadcrumb.Root>
+              <Breadcrumb.List>
+                {breadcrumb.map((crumb, i) => {
+                  const last = i === breadcrumb.length - 1;
+                  return (
+                    <>
+                      <Breadcrumb.Item>
+                        {crumb.item && !last ? (
+                          <Breadcrumb.Link href={crumb.item}>{crumb.name}</Breadcrumb.Link>
+                        ) : (
+                          <Breadcrumb.Page>{crumb.name}</Breadcrumb.Page>
+                        )}
+                      </Breadcrumb.Item>
+                      {!last && <Breadcrumb.Separator />}
+                    </>
+                  );
+                })}
+              </Breadcrumb.List>
+            </Breadcrumb.Root>
+          </div>
+        )}
+        <slot name="breadcrumb" />
+        <main id="main">
+          <slot />
+        </main>
+        <footer class="section-gap footer-shell">
+          <div class="invert-field">
+            <div class="page-margin pt-10 sm:pt-14 lg:pt-20" data-motion>
+              <div class="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 lg:gap-x-8">
+                <div>
+                  <p class="text-lg font-medium">Yansyah</p>
+                  <p class="mt-2 text-base opacity-80">Bandung, Indonesia</p>
+                  <p class="mt-1 text-base opacity-80">Processes, clarified.</p>
+                </div>
+                <nav aria-label="Footer">
+                  <p class="text-lg font-medium">Sections</p>
+                  <ul class="mt-2">
+                    {primaryLinks.map((link) => (
+                      <li>
+                        <a href={link.href}>{link.label}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </nav>
+                <div>
+                  <p class="text-lg font-medium">Elsewhere</p>
+                  <ul class="mt-2">
+                    <li><a class="inline-flex items-center gap-2" href="/go/github"><Icon of={GithubIcon} data-icon="inline-start" aria-hidden="true" />GitHub</a></li>
+                    <li><a class="inline-flex items-center gap-2" href="/go/linkedin"><Icon of={LinkedinIcon} data-icon="inline-start" aria-hidden="true" />LinkedIn</a></li>
+                    <li><a class="inline-flex items-center gap-2" href="/go/instagram"><Icon of={InstagramIcon} data-icon="inline-start" aria-hidden="true" />Instagram</a></li>
+                    <li><a class="inline-flex items-center gap-2" href="/rss.xml"><Icon of={Rss} data-icon="inline-start" aria-hidden="true" />RSS</a></li>
+                  </ul>
+                </div>
+                <div>
+                  <p class="text-lg font-medium">Contact</p>
+                  <ul class="mt-2">
+                    <li><a class="inline-flex items-center gap-2" href={emailHref}><Icon of={Mail} data-icon="inline-start" aria-hidden="true" />Email me</a></li>
+                    <li><a href="/contact">Contact page</a></li>
+                  </ul>
+                </div>
+              </div>
+              <p class="display footer-wordmark mt-10 leading-none sm:mt-12" aria-label="Andriyansyah Nurrachman">
+                Yansyah
+              </p>
+              <p class="credit-line credit-line--ink mt-6 max-w-2xl pb-10 sm:pb-14 lg:pb-16">
+                Words and pictures by Andriyansyah Nurrachman unless credited otherwise. Found
+                photographs are credited beside each picture and in the colophon on each page.
+              </p>
+            </div>
+          </div>
+        </footer>
+      </div>
+      {hasSecondary && (
+        <aside class="shell-rail hidden xl:block" aria-label="Page actions">
+          <div class="flex min-w-0 flex-col gap-4">
+            <SecondaryRail label="On this page">
+              <slot name="secondary" />
+            </SecondaryRail>
+          </div>
+        </aside>
+      )}
+    </div>
+    <BottomNav currentPath={normPath} />
+    {hasSecondary && (
+      <FabDrawer client:visible label="Page options">
+        <slot name="secondary" />
+      </FabDrawer>
+    )}
+    <script is:inline>
+      (() => {
+        var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        document.documentElement.classList.add("js-motion");
+        var scopes = Array.prototype.slice.call(document.querySelectorAll("[data-motion]"));
+        var masks = Array.prototype.slice.call(document.querySelectorAll("[data-mask], [data-shutter]"));
+        var show = function (el) { el.classList.add("in"); };
+        scopes.forEach(function (scope) {
+          var kids = [];
+          Array.prototype.forEach.call(scope.children, function (child) {
+            if ((child.tagName === "OL" || child.tagName === "UL") && child.children.length) {
+              kids.push.apply(kids, child.children);
+            } else {
+              kids.push(child);
+            }
+          });
+          kids.forEach(function (kid, i) {
+            kid.classList.add("mv");
+            kid.style.setProperty("--d", Math.min(i, 4) * 70 + "ms");
+          });
+        });
+        if (reduce) {
+          scopes.forEach(show);
+          masks.forEach(show);
+          return;
+        }
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { masks.forEach(show); });
+        });
+        var pending = false;
+        var check = function () {
+          pending = false;
+          var h = window.innerHeight || 800;
+          scopes.forEach(function (scope) {
+            if (scope.classList.contains("in")) return;
+            var r = scope.getBoundingClientRect();
+            if (r.top < h * 1.5 && r.bottom > -h * 0.5) show(scope);
+          });
+        };
+        var kick = function () {
+          if (!pending) { pending = true; requestAnimationFrame(check); }
+        };
+        window.addEventListener("scroll", kick, { passive: true });
+        window.addEventListener("resize", kick);
+        check();
+      })();
+    </script>
+  </body>
+</html>

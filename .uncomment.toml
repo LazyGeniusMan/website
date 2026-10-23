@@ -8,31 +8,59 @@ use_default_ignores = true
 respect_gitignore = true
 traverse_git_repos = false
 
+[languages.pkl]
+name = "Pkl"
+extensions = [".pkl"]
+comment_nodes = ["comment"]
+preserve_patterns = []
+
 [languages.toml]
 name = "TOML"
-extensions = ["toml"]
+extensions = [".toml"]
 comment_nodes = ["comment"]
 doc_comment_nodes = []
 preserve_patterns = ["tombi"]
 
-[languages.pkl]
-name = "Pkl"
-extensions = ["pkl"]
-comment_nodes = ["comment"]
-preserve_patterns = []
-
 [languages.yaml]
 name = "YAML"
-extensions = ["yaml", "yml"]
+extensions = [".yaml", ".yml"]
 comment_nodes = ["comment"]
 doc_comment_nodes = []
 preserve_patterns = ["yamllint", "ansible-lint", "$schema"]
 
-[languages.go]
-name = "Go"
-extensions = ["go"]
+[languages.typescript]
+name = "TypeScript"
+extensions = [".ts", ".tsx", ".mts", ".cts", ".d.ts"]
 comment_nodes = ["comment"]
-preserve_patterns = ["go:build", "go:generate", "go:embed", "go:cgo", "+build", "nolint", "#cgo", "#include"]
+preserve_patterns = ["@ts-expect-error", "@ts-ignore", "oxfmt-", "oxlint-"]
+
+[languages.html]
+name = "HTML"
+extensions = [".html", ".htm", ".xhtml"]
+comment_nodes = ["comment"]
+
+[languages.css]
+name = "CSS"
+extensions = [".css"]
+comment_nodes = ["comment"]
+
+[languages.javascript]
+name = "JavaScript"
+extensions = [".js", ".jsx", ".mjs", ".cjs"]
+comment_nodes = ["comment"]
+preserve_patterns = ["@ts-expect-error", "@ts-ignore", "oxfmt-", "oxlint-"]
+
+[languages.astro]
+name = "Svelte"
+extensions = [".astro"]
+comment_nodes = ["comment"]
+preserve_patterns = ["oxfmt-", "oxlint-"]
+
+[languages.svelte]
+name = "Svelte"
+extensions = [".svelte"]
+comment_nodes = ["comment"]
+preserve_patterns = ["oxfmt-", "oxlint-"]
 
 [patterns."tests/**/*"]
 remove_todos = true

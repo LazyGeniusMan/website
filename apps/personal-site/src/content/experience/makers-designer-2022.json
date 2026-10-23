@@ -1,0 +1,43 @@
+{
+  "roleName": "Business Process Designer",
+  "description": "Identified and documented procurement business processes within the oil and gas sector.",
+  "startDate": "2022-06",
+  "endDate": "2023-06",
+  "worksFor": "makers-institute",
+  "skills": [
+    "business-process-management",
+    "business-process-improvement",
+    "bpmn",
+    "information-systems",
+    "sql"
+  ],
+  "jobLocation": "Bandung, Indonesia",
+  "employmentType": "FULL_TIME",
+  "relatedProjects": [
+    "makers-marketplace-2022",
+    "makers-oil-gas-procurement-2022",
+    "makers-inventory-system-2023",
+    "makers-b2b-tour-coa-2023"
+  ],
+  "heroImage": "../../assets/logo-makers-institute.png",
+  "occupation": {
+    "name": "Business Process Designer",
+    "description": "Process documentation, chart of accounts, and functional specifications for marketplace, AIS, and inventory systems.",
+    "responsibilities": [
+      "Identified and documented procurement business processes within the oil and gas sector.",
+      "Prepared detailed business process documentation, chart of accounts, and accounting treatment for a B2C marketplace startup.",
+      "Developed functional specification documents and designed wireframes for an Accounting Information System.",
+      "Validated the Accounting Information System application's alignment with business requirements and accounting standards by creating and executing comprehensive test cases.",
+      "Prepared functional specification documents and designed wireframes for an Inventory Management System.",
+      "Designed wireframes, charts of accounts, and accounting treatment for a B2B tour and travel company."
+    ],
+    "skillsNote": "Business process documentation, chart of accounts, accounting treatment, functional specification, wireframes, test cases.",
+    "skills": [
+      "business-process-management",
+      "business-process-improvement",
+      "bpmn",
+      "information-systems",
+      "sql"
+    ]
+  }
+}

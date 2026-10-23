@@ -1,0 +1,61 @@
+---
+import "design-system/base.css";
+import "../styles/site.css";
+import * as Alert from "$lib/components/ui/alert/index.js";
+import { Button } from "$lib/components/ui/button/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import { Separator } from "$lib/components/ui/separator/index.js";
+import Icon from "./Icon.svelte";
+import ExternalLink from "@lucide/svelte/icons/external-link";
+
+interface Props {
+  target: string;
+  label: string;
+  blurb: string;
+  canonical?: string;
+}
+
+const { target, label, blurb, canonical = target } = Astro.props;
+const external = /^https?:\/\//.test(target);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redirecting to {label}</title>
+    <meta name="description" content={blurb} />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="canonical" href={canonical} />
+    <meta name="robots" content="noindex" />
+    <meta http-equiv="refresh" content={`0; url=${target}`} />
+  </head>
+  <body class="bg-background text-foreground antialiased">
+    <main class="mx-auto flex min-h-svh w-full max-w-md flex-col items-center justify-center px-4 py-16">
+      <Card.Root class="w-full">
+        <Card.Header class="items-center text-center">
+          <span class="text-4xl"><Icon of={ExternalLink} data-icon="inline" aria-hidden="true" /></span>
+          <Card.Title>
+            <h1 class="display m-0 text-4xl">Redirecting</h1>
+          </Card.Title>
+          <Card.Description class="text-base">
+            Taking you to {label}. If nothing happens,
+            <a class="underline underline-offset-4" href={target}>continue to {label}</a>.
+          </Card.Description>
+        </Card.Header>
+        <Card.Content class="flex flex-col items-center gap-4">
+          <Separator />
+          <Alert.Root class="text-left">
+            <Alert.Title>{external ? "Leaving yansyah.my.id" : "Moved page"}</Alert.Title>
+            <Alert.Description class="break-all tabular-nums">Destination: {target}</Alert.Description>
+          </Alert.Root>
+        </Card.Content>
+        <Card.Footer class="justify-center">
+          <Button href={target} class="min-h-11 rounded-none">Continue to {label}</Button>
+        </Card.Footer>
+      </Card.Root>
+    </main>
+    <slot />
+  </body>
+</html>

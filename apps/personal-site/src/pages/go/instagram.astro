@@ -1,0 +1,13 @@
+---
+import GoRedirect from "../../components/GoRedirect.astro";
+
+const target = "https://instagram.com/__yansyah";
+const label = "Instagram";
+const blurb = "Redirecting to Instagram.";
+---
+
+<GoRedirect target={target} label={label} blurb={blurb}>
+  <script is:inline>
+    window.location.replace("https://instagram.com/__yansyah");
+  </script>
+</GoRedirect>

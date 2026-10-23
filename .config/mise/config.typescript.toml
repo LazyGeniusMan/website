@@ -5,6 +5,9 @@ _.path = ["{{config_root}}/node_modules/.bin"]
 node = "24"
 vp = "1"
 
+[tasks."dev-setup:vp"]
+run = "vp i --frozen-lockfile"
+
 [bootstrap.packages]
 "apk:musl-dev" = "latest"
 "apk:libstdc++-dev" = "latest"

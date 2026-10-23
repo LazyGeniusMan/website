@@ -1,0 +1,13 @@
+---
+import GoRedirect from "../../components/GoRedirect.astro";
+
+const target = "https://github.com/LazyGeniusMan";
+const label = "GitHub";
+const blurb = "Redirecting to GitHub.";
+---
+
+<GoRedirect target={target} label={label} blurb={blurb}>
+  <script is:inline>
+    window.location.replace("https://github.com/LazyGeniusMan");
+  </script>
+</GoRedirect>

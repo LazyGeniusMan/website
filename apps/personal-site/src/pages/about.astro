@@ -1,0 +1,661 @@
+---
+import { Image, getImage } from "astro:assets";
+import type {
+  CollegeOrUniversity,
+  EducationalOrganization,
+  ProfilePage,
+} from "schema-dts";
+import Layout from "../layouts/Layout.astro";
+import PersonFilter from "../components/islands/PersonFilter.svelte";
+import TocNav from "$lib/components/islands/TocNav.svelte";
+import FactTable from "../components/FactTable.astro";
+import Section from "../components/Section.astro";
+import { TableCell, TableRow } from "$lib/components/ui/table/index.js";
+import {
+  PERSON_ID,
+  WEBSITE_ID,
+  breadcrumbId,
+  breadcrumbNode,
+  credentialNode,
+  heroImageNode,
+  imageIdOf,
+  organizationNode,
+  personFullNode,
+  resolveOrganizationLogoUrl,
+  resolveSiteUrl,
+  toGraph,
+  toSiteMonthIso,
+  webpageId,
+  websiteNode,
+} from "../lib/jsonld";
+import { creditFor } from "../data/credits";
+import { getResume, toAtsSlug } from "../lib/collections";
+import { getPersonRelations } from "../lib/lists/person";
+import { getCollection } from "astro:content";
+import portrait from "../assets/portrait.png";
+import ArrowUpRight from "@lucide/svelte/icons/arrow-up-right";
+import Globe from "@lucide/svelte/icons/globe";
+import Mail from "@lucide/svelte/icons/mail";
+import Icon from "../components/Icon.svelte";
+import ThumbPlaceholder from "../components/ThumbPlaceholder.astro";
+
+const resume = await getResume();
+const rel = await getPersonRelations();
+const { groups, sections, thumbs, counts } = rel;
+
+const itemsWithThumbs = await Promise.all(
+  sections.map(async (sec) => ({
+    ...sec,
+    items: await Promise.all(
+      sec.items.map(async (item) => {
+        const source = thumbs.get(item.id);
+        if (!source) return item;
+        const thumb = await getImage({ src: source.src, width: 128, format: "webp", quality: 70 });
+        return { ...item, thumbSrc: thumb.src, thumbAlt: source.alt };
+      }),
+    ),
+  })),
+);
+
+const displaySections = itemsWithThumbs
+  .filter((sec) => sec.key !== "writing")
+  .map((sec) =>
+    sec.key === "education"
+      ? { ...sec, blurb: "Degree.", items: sec.items.filter((item) => item.kind === "education") }
+      : sec,
+  )
+  .filter((sec) => sec.items.length > 0);
+
+const portraitSeo = await getImage({ src: portrait, width: 800, format: "webp", quality: 70 });const portraitNode = heroImageNode({ heroImage: portraitSeo, pagePath: "/about" });
+const portraitImageId = imageIdOf(portraitNode);
+
+const CATEGORY_ORDER = ["Core Competencies", "Process", "Technical Skills", "Tools", "Other"];
+const skillGroups = (() => {
+  const items = itemsWithThumbs.find((s) => s.key === "skills")?.items ?? [];
+  const buckets = new Map<string, typeof items>();
+  for (const item of items) {
+    const label = item.group ?? "Other";
+    const list = buckets.get(label);
+    if (list) list.push(item);
+    else buckets.set(label, [item]);
+  }
+  return [...buckets.entries()]
+    .map(([label, list]) => ({ label, items: list }))
+    .sort((a, b) => {
+      const ai = CATEGORY_ORDER.indexOf(a.label);
+      const bi = CATEGORY_ORDER.indexOf(b.label);
+      if (ai < 0 && bi < 0) return a.label.localeCompare(b.label);
+      if (ai < 0) return 1;
+      if (bi < 0) return -1;
+      return ai - bi;
+    });
+})();
+
+const person = resume.person;
+const personData = person.data;
+const siteUrl = resolveSiteUrl(Astro.site);
+const siteHost = personData.url.replace("https://", "").replace(/\/$/, "");
+const personAddress = personData.address as
+  | { addressLocality?: string; addressCountry?: string }
+  | undefined;
+const personPlace =
+  [personAddress?.addressLocality, personAddress?.addressCountry === "ID" ? "Indonesia" : personAddress?.addressCountry]
+    .filter(Boolean)
+    .join(", ") || "Bandung, Indonesia";
+const LANGUAGE_NAMES: Record<string, string> = { id: "Indonesian", en: "English" };
+const hostOf = (u: string): string => {
+  try {
+    return new URL(u).hostname.replace(/^www\./, "");
+  } catch {
+    return u;
+  }
+};
+const tocItems = [
+  ...displaySections.map((s) => ({ id: `person-${s.key}`, label: s.title })),
+  { id: "metadata", label: "Metadata" },
+];
+
+const orgsAll = await getCollection("organizations");
+const orgById = new Map(orgsAll.map((o) => [o.id, o]));
+const orgByStem = new Map(orgsAll.map((o) => [o.id.split("/").pop() ?? o.id, o]));
+const unpadOrg = orgByStem.get("unpad");
+const febOrg = orgByStem.get("feb-unpad");
+
+const credentialOrgRefs = [
+  ...new Map(
+    resume.credentials.flatMap((c) => {
+      const rec = c.data.recognizedBy as unknown as { id: string } | string | undefined;
+      if (!rec) return [];
+      const raw = typeof rec === "string" ? rec : rec.id;
+      const stem = raw.split("/").pop() ?? "";
+      return stem ? [[stem, raw] as const] : [];
+    }),
+  ).entries(),
+].filter(([stem]) => stem !== "unpad" && stem !== "feb-unpad");
+const credentialOrgNodes = credentialOrgRefs.map(([, raw]) => {
+  const stem = raw.split("/").pop() ?? raw;
+  const org = orgByStem.get(stem) ?? orgById.get(raw);
+  if (!org) throw new Error(`about: dangling recognizedBy org ref ${raw}`);
+  const orgStem = org.id.split("/").pop() ?? org.id;
+  const parentRaw = org.data.parentOrganization as unknown as string | { id: string } | undefined;
+  const parentStem = parentRaw
+    ? (typeof parentRaw === "string" ? parentRaw : parentRaw.id).split("/").pop() ?? ""
+    : "";
+  return organizationNode({
+    slug: orgStem,
+    siteUrl,
+    type: org.data.type,
+    name: org.data.name,
+    ...(org.data.alternateName ? { alternateName: org.data.alternateName } : {}),
+    ...(org.data.description ? { description: org.data.description } : {}),
+    ...(org.data.url ? { url: org.data.url } : {}),
+    ...(org.data.logo ? { logo: org.data.logo } : {}),
+    ...(org.data.sameAs?.length ? { sameAs: [...org.data.sameAs] } : {}),
+    ...(parentStem ? { parentStem } : {}),
+  });
+});
+
+const contentInstants = [
+  ...resume.projects.flatMap((p) => [p.data.pubDate, p.data.dateModified, p.data.dateCreated]),
+  ...resume.credentials.flatMap((c) => [c.data.dateCreated, c.data.validUntil]),
+]
+  .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+  .map((d) => d.getTime());
+const maxContentDate = contentInstants.length ? new Date(Math.max(...contentInstants)) : null;
+const graphNodes = toGraph([
+  {
+    "@type": "ProfilePage",
+    "@id": webpageId("/about"),
+    url: `${siteUrl}/about`,
+    name: "About",
+    isPartOf: { "@id": WEBSITE_ID },
+    about: { "@id": PERSON_ID },
+    breadcrumb: { "@id": breadcrumbId("/about") },
+    mainEntity: { "@id": PERSON_ID },
+    dateCreated: toSiteMonthIso(
+      resume.experience.map((e) => e.data.startDate).sort()[0] ?? "2018-01",
+    ),
+    ...(maxContentDate ? { dateModified: maxContentDate.toISOString() } : {}),
+    ...(portraitImageId ? { primaryImageOfPage: { "@id": portraitImageId } } : {}),
+  } satisfies ProfilePage,
+  personFullNode({
+    name: personData.name,
+    jobTitle: personData.jobTitle,
+    description: personData.description,
+    url: `${siteUrl}/`,
+    email: personData.email,
+    image: `${siteUrl}${portraitSeo.src}`,
+    sameAs: personData.sameAs,
+    knowsLanguage: personData.knowsLanguage ?? ["id", "en"],
+    knowsAboutIds: resume.skills.map((s) => s.id.split("/").pop() ?? s.id),
+    occupationIds: resume.experience.map((e) => e.id.split("/").pop() ?? e.id),
+    alumniIds: (personData.alumniOf as unknown[]).map((r) => {
+      const raw = typeof r === "string" ? r : (r as { id: string }).id;
+      return raw.split("/").pop() ?? raw;
+    }),
+    credentialIds: resume.credentials.map((c) => c.id.split("/").pop() ?? c.id),
+    address: {
+      addressLocality: personAddress?.addressLocality ?? "Bandung",
+      addressCountry: personAddress?.addressCountry ?? "ID",
+    },
+    ...(resume.education.entry
+      ? {
+          educationIds: [resume.education.entry.id.split("/").pop() ?? resume.education.entry.id],
+        }
+      : {}),
+  }),
+  websiteNode(),
+  breadcrumbNode("/about", [
+    { name: "Home", item: "/" },
+    { name: "About", item: "/about" },
+  ]),
+  ...(unpadOrg
+    ? [
+        {
+          "@type": "CollegeOrUniversity",
+          "@id": `${siteUrl}/organizations/unpad#org`,
+          name: unpadOrg.data.name,
+          ...(unpadOrg.data.alternateName ? { alternateName: unpadOrg.data.alternateName } : {}),
+          ...(unpadOrg.data.url ? { url: unpadOrg.data.url } : {}),
+          ...(unpadOrg.data.logo ? { logo: resolveOrganizationLogoUrl(unpadOrg.data.logo) } : {}),
+          ...(unpadOrg.data.sameAs?.length ? { sameAs: [...unpadOrg.data.sameAs] } : {}),
+        } satisfies CollegeOrUniversity,
+      ]
+    : []),
+  ...(febOrg
+    ? [
+        {
+          "@type": "EducationalOrganization",
+          "@id": `${siteUrl}/organizations/feb-unpad#org`,
+          name: febOrg.data.name,
+          ...(febOrg.data.logo ? { logo: resolveOrganizationLogoUrl(febOrg.data.logo) } : {}),
+          parentOrganization: { "@id": `${siteUrl}/organizations/unpad#org` },
+        } satisfies EducationalOrganization,
+      ]
+    : []),
+  ...resume.credentials.map((c) => {
+    const rec = c.data.recognizedBy as unknown as { id: string } | string | undefined;
+    const stem = rec ? (typeof rec === "string" ? rec : rec.id).split("/").pop() ?? "" : "";
+    const aboutStems = ((c.data.about ?? []) as unknown[]).map((r) => {
+      const raw = typeof r === "string" ? r : (r as { id: string }).id;
+      return raw.split("/").pop() ?? raw;
+    });
+    return credentialNode({
+      slug: c.id,
+      siteUrl,
+      name: c.data.name,
+      ...(c.data.description ? { description: c.data.description } : {}),
+      ...(c.data.credentialCategory ? { credentialCategory: c.data.credentialCategory } : {}),
+      ...(c.data.educationalLevel ? { educationalLevel: c.data.educationalLevel } : {}),
+      ...(c.data.credentialId ? { identifier: c.data.credentialId } : {}),
+      ...(c.data.dateCreated ? { dateCreated: c.data.dateCreated as Date } : {}),
+      ...(c.data.validUntil ? { expires: c.data.validUntil as Date } : {}),
+      ...(c.data.url ? { url: c.data.url } : {}),
+      ...(rec && stem ? { recognizedByStem: stem } : {}),
+      ...(aboutStems.length ? { aboutStems } : {}),
+    });
+  }),
+  ...(resume.education.entry
+    ? [
+        credentialNode({
+          slug: resume.education.entry.id,
+          siteUrl,
+          pathPrefix: "education",
+          name: resume.education.entry.data.name,
+          ...(resume.education.entry.data.description
+            ? { description: resume.education.entry.data.description }
+            : {}),
+          credentialCategory: resume.education.entry.data.credentialCategory,
+          ...(resume.education.entry.data.educationalLevel
+            ? { educationalLevel: resume.education.entry.data.educationalLevel }
+            : {}),
+          recognizedByStem:
+            (typeof resume.education.entry.data.recognizedBy === "string"
+              ? resume.education.entry.data.recognizedBy
+              : (resume.education.entry.data.recognizedBy as { id: string }).id
+            ).split("/").pop() ?? "",
+          ...(resume.education.entry.data.department
+            ? {
+                departmentStem: (typeof resume.education.entry.data.department === "string"
+                  ? resume.education.entry.data.department
+                  : (resume.education.entry.data.department as { id: string }).id
+                ).split("/").pop() ?? "",
+              }
+            : {}),
+        }),
+      ]
+    : []),
+  ...credentialOrgNodes,
+  ...(portraitNode ? [portraitNode] : []),
+]);
+---
+
+<Layout
+  title="About"
+  description={`Resume of ${personData.name}: ${counts.experience} roles, ${counts.skills} skills, ${counts.projects} projects, ${counts.credentials} credentials.`}
+  graphNodes={graphNodes}
+  breadcrumb={[
+    { name: "Home", item: "/" },
+    { name: "About" },
+  ]}
+>
+  <div slot="secondary">
+    <TocNav client:visible items={tocItems} />
+    <div class="mt-8">
+      <PersonFilter
+        groups={groups}
+        label="Filter resume"
+        resumeBase="/cv"
+        dateMin={rel.dateMin}
+        dateMax={rel.dateMax}
+        client:only="svelte"
+      />
+    </div>
+    <noscript>
+      <p class="mt-8 text-lg font-medium">Resume</p>
+      <p class="mt-2 text-base text-muted-foreground">
+        Filtering needs JavaScript. The full metadata, including an ATS-friendly printable resume, lives on <a class="text-primary underline underline-offset-4" href="/cv">/cv</a>.
+      </p>
+    </noscript>
+  </div>
+
+  <Section variant="sheet" labelledby="about-heading">
+    <h1 id="about-heading" class="display text-[clamp(2.5rem,1.5rem+5vw,5.5rem)]">
+      {personData.name}
+    </h1>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">
+      {personData.jobTitle}{personData.alternateName ? ` (also ${personData.alternateName})` : ""}
+    </p>
+    <div class="mt-10 grid gap-10 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+      <div class="min-w-0">
+        <p class="lead max-w-[28ch] md:text-[clamp(1.25rem,1rem+0.7vw,1.625rem)]">
+          {personData.description}
+        </p>
+        <dl class="mt-8 flex max-w-3xl flex-col gap-7" aria-label={`${personData.name} coverage`}>
+          <div class="grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-x-6 sm:grid-cols-[132px_minmax(0,1fr)]">
+            <dt class="col-start-2 row-start-1 text-base text-muted-foreground">skills</dt>
+            <dd class="display col-start-1 row-start-1 m-0 text-right text-3xl tabular-nums">{counts.skills}</dd>
+          </div>
+          <div class="grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-x-6 sm:grid-cols-[132px_minmax(0,1fr)]">
+            <dt class="col-start-2 row-start-1 text-base text-muted-foreground">roles</dt>
+            <dd class="display col-start-1 row-start-1 m-0 text-right text-3xl tabular-nums">{counts.experience}</dd>
+          </div>
+          <div class="grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-x-6 sm:grid-cols-[132px_minmax(0,1fr)]">
+            <dt class="col-start-2 row-start-1 text-base text-muted-foreground">projects</dt>
+            <dd class="display col-start-1 row-start-1 m-0 text-right text-3xl tabular-nums">{counts.projects}</dd>
+          </div>
+          <div class="grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-x-6 sm:grid-cols-[132px_minmax(0,1fr)]">
+            <dt class="col-start-2 row-start-1 text-base text-muted-foreground">posts</dt>
+            <dd class="display col-start-1 row-start-1 m-0 text-right text-3xl tabular-nums">{counts.posts}</dd>
+          </div>
+          <div class="grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-x-6 sm:grid-cols-[132px_minmax(0,1fr)]">
+            <dt class="col-start-2 row-start-1 text-base text-muted-foreground">credentials</dt>
+            <dd class="display col-start-1 row-start-1 m-0 text-right text-3xl tabular-nums">{counts.credentials}</dd>
+          </div>
+        </dl>
+        <p class="mt-8 flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-2 text-lg">
+          <span class="inline-flex items-center gap-2">
+            <Icon of={Mail} data-icon="inline-start" aria-hidden="true" />
+            <a class="text-primary underline underline-offset-4" href={`mailto:${personData.email}`}>{personData.email}</a>
+          </span>
+          <span class="inline-flex items-center gap-2">
+            <Icon of={Globe} data-icon="inline-start" aria-hidden="true" />
+            <a class="text-primary underline underline-offset-4" href={personData.url}>{siteHost}</a>
+          </span>
+          <span class="text-muted-foreground">{personPlace}</span>
+        </p>
+        <div class="mt-4 flex max-w-3xl flex-wrap gap-x-6 gap-y-2 text-lg">
+          {personData.sameAs.map((u) => (
+            <a class="text-primary underline underline-offset-4" href={u}>{hostOf(u)}</a>
+          ))}
+        </div>
+      </div>
+      <figure class="w-40 min-w-0 md:w-48">
+        <Image
+          src={portrait}
+          alt={`Portrait of ${personData.name}`}
+          width={800}
+          format="webp"
+          quality={70}
+          loading="eager"
+          decoding="async"
+          class="aspect-square w-full object-cover"
+        />
+        <figcaption class="credit-line mt-2">
+          {creditFor("portrait").caption} {creditFor("portrait").credit}
+        </figcaption>
+      </figure>
+    </div>
+  </Section>
+
+  {displaySections.map((sec) => (
+    <Section variant="ledger" label={sec.title}>
+      <div id={`person-${sec.key}`} class="min-w-0 max-w-full scroll-mt-24" data-person-section={sec.key}>
+        <h2 id={`person-${sec.key}-heading`} class="min-w-0 max-w-full scroll-mt-24 text-2xl font-medium md:text-3xl">
+          {sec.title}
+        </h2>
+        <p class="mt-3 max-w-3xl text-lg text-muted-foreground">{sec.blurb}</p>
+        <div class="mt-8 min-w-0 max-w-full">
+          {sec.key === "skills" ? (
+            <div class="flex min-w-0 max-w-full flex-col gap-10">
+              {skillGroups.map((group) => (
+                <section aria-label={group.label} data-person-group={group.label} class="min-w-0 max-w-full">
+                  <h3 class="text-xl font-medium">
+                    {group.label}
+                    <span class="ml-2 text-muted-foreground tabular-nums">({group.items.length})</span>
+                  </h3>
+                  <ul class="mt-6 flex min-w-0 max-w-full list-none flex-col gap-8 p-0 [overflow-wrap:anywhere]">
+                    {group.items.map((item) => (
+                      <li
+                        class="min-w-0"
+                        data-person-item
+                        data-kind={item.kind}
+                        data-org={(item.facets.org ?? []).join(" ")}
+                        data-skill={(item.facets.skill ?? []).join(" ")}
+                        data-exp={(item.facets.exp ?? []).join(" ")}
+                        data-project={(item.facets.project ?? []).join(" ")}
+                        data-date={item.date}
+                        data-date-end={item.dateEnd}
+                        data-text={item.text}
+                      >
+                        <div class="flex min-w-0 max-w-full flex-row items-start gap-4 [overflow-wrap:anywhere]">
+                          {item.thumbSrc ? (
+                            <img
+                              src={item.thumbSrc}
+                              alt={item.thumbAlt ?? `${item.title} thumbnail`}
+                              class="aspect-square size-16 shrink-0 rounded-none object-cover"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          ) : (
+                            <ThumbPlaceholder name={item.title} />
+                          )}
+                          <div class="min-w-0 flex-1">
+                            <p class="text-xl leading-snug font-medium">
+                              <a href={item.href} class="underline-offset-4 hover:text-primary hover:underline">
+                                {item.title}
+                              </a>
+                            </p>
+                            <p class="mt-1 text-base leading-relaxed text-muted-foreground">
+                              {item.meta}
+                            </p>
+                            <p class="mt-2 min-w-0 max-w-full text-base leading-relaxed [overflow-wrap:anywhere]">{item.detail}</p>
+                            {(item.badges?.length ?? 0) > 0 && (
+                              <p class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-base">
+                                {(item.badges ?? []).map((badge, i) => {
+                                  const href = (item.badgeHrefs ?? [])[i] ?? undefined;
+                                  const label = item.hashBadges ? `#${badge.replace(/^#+/, "")}` : badge;
+                                  return href ? (
+                                    <a class="text-primary underline underline-offset-4" href={href}>{label}</a>
+                                  ) : (
+                                    <span class="text-muted-foreground">{label}</span>
+                                  );
+                                })}
+                              </p>
+                            )}
+                            <p class="mt-2 text-base">
+                              <a class="inline-flex items-center gap-2 underline underline-offset-4 hover:text-primary" href={item.href}>
+                                Open details
+                                <Icon of={ArrowUpRight} data-icon="inline-end" aria-hidden="true" />
+                              </a>
+                            </p>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          ) : (
+          <ol class="flex list-none flex-col gap-8 p-0">
+            {sec.items.map((item) => (
+              <li
+                class="w-full min-w-0 max-w-full"
+                data-person-item
+                data-kind={item.kind}
+                data-org={(item.facets.org ?? []).join(" ")}
+                data-skill={(item.facets.skill ?? []).join(" ")}
+                data-exp={(item.facets.exp ?? []).join(" ")}
+                data-project={(item.facets.project ?? []).join(" ")}
+                data-date={item.date}
+                data-date-end={item.dateEnd}
+                data-text={item.text}
+              >
+                <div class="flex min-w-0 max-w-full flex-row items-start gap-4 [overflow-wrap:anywhere]">
+                  {item.thumbSrc ? (
+                    <img
+                      src={item.thumbSrc}
+                      alt={item.thumbAlt ?? `${item.title} thumbnail`}
+                      class="aspect-square size-16 shrink-0 rounded-none object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <ThumbPlaceholder name={item.title} />
+                  )}
+                  <div class="min-w-0 flex-1">
+                    <p class="text-xl leading-snug font-medium md:text-2xl">
+                      <a href={item.href} class="underline-offset-4 hover:text-primary hover:underline">
+                        {item.title}
+                      </a>
+                    </p>
+                    <p class="mt-2 max-w-3xl text-base leading-relaxed md:text-lg">
+                      {item.detail}
+                    </p>
+                    <p class="mt-2 flex min-w-0 max-w-full flex-wrap items-center gap-2 text-base tabular-nums opacity-70 [overflow-wrap:anywhere]">
+                      <span>{item.meta}</span>
+                      <Icon of={ArrowUpRight} data-icon="inline-end" aria-hidden="true" />
+                    </p>
+                    {(item.badges?.length ?? 0) > 0 && (
+                      <p class="mt-2 flex min-w-0 max-w-full flex-wrap gap-x-4 gap-y-1 text-base [overflow-wrap:anywhere]">
+                        {(item.badges ?? []).map((badge, i) => {
+                          const href = (item.badgeHrefs ?? [])[i] ?? undefined;
+                          const label = item.hashBadges ? `#${badge.replace(/^#+/, "")}` : badge;
+                          return href ? (
+                            <a class="text-primary underline underline-offset-4" href={href}>{label}</a>
+                          ) : (
+                            <span class="text-muted-foreground">{label}</span>
+                          );
+                        })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+          )}
+        </div>
+      </div>
+    </Section>
+  ))}
+
+  <Section variant="ledger" label="Metadata">
+    <div id="metadata" class="max-w-3xl min-w-0 scroll-mt-24">
+    <h2 id="metadata-heading" class="mb-6 min-w-0 max-w-full scroll-mt-24 text-2xl font-medium md:text-3xl">
+      Metadata
+    </h2>
+    <FactTable title="Metadata" caption="Every field on this person, with links to its relations.">
+      <TableRow>
+        <TableCell class="w-36 align-top font-medium">Name</TableCell>
+        <TableCell>{personData.name}</TableCell>
+      </TableRow>
+      {personData.alternateName && (
+        <TableRow>
+          <TableCell class="align-top font-medium">Also known as</TableCell>
+          <TableCell>{personData.alternateName}</TableCell>
+        </TableRow>
+      )}
+      {personData.jobTitle && (
+        <TableRow>
+          <TableCell class="align-top font-medium">Title</TableCell>
+          <TableCell>{personData.jobTitle}</TableCell>
+        </TableRow>
+      )}
+      <TableRow>
+        <TableCell class="align-top font-medium">Summary</TableCell>
+        <TableCell>{personData.description}</TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell class="align-top font-medium">Website</TableCell>
+        <TableCell><a class="text-primary underline underline-offset-4" href={personData.url}>{siteHost}</a></TableCell>
+      </TableRow>
+      {personData.email && (
+        <TableRow>
+          <TableCell class="align-top font-medium">Email</TableCell>
+          <TableCell><a class="text-primary underline underline-offset-4" href={`mailto:${personData.email}`}>{personData.email}</a></TableCell>
+        </TableRow>
+      )}
+      <TableRow>
+        <TableCell class="align-top font-medium">Portrait</TableCell>
+        <TableCell><span class="text-muted-foreground">Small WebP portrait, 320px wide. {creditFor("portrait").caption} {creditFor("portrait").credit}</span></TableCell>
+      </TableRow>
+      {personData.logo && (
+        <TableRow>
+          <TableCell class="align-top font-medium">Logo</TableCell>
+          <TableCell><span class="text-muted-foreground">List logo asset, rendered as the person mark where used.</span></TableCell>
+        </TableRow>
+      )}
+      {(personData.images?.length ?? 0) > 0 && (
+        <TableRow>
+          <TableCell class="align-top font-medium">Images</TableCell>
+          <TableCell><span class="text-muted-foreground">{personData.images?.length} gallery image{(personData.images?.length ?? 0) === 1 ? "" : "s"}.</span></TableCell>
+        </TableRow>
+      )}
+      {personData.sameAs.length > 0 && (
+        <TableRow>
+          <TableCell class="align-top font-medium">Profiles</TableCell>
+          <TableCell>
+            <span class="flex flex-wrap gap-x-4 gap-y-1">
+              {personData.sameAs.map((u) => (
+                <a class="text-primary underline underline-offset-4" href={u}>{hostOf(u)}</a>
+              ))}
+            </span>
+          </TableCell>
+        </TableRow>
+      )}
+      <TableRow>
+        <TableCell class="align-top font-medium">Skills</TableCell>
+        <TableCell>
+          <span class="flex flex-wrap gap-2">
+            {resume.skills.map((s) => {
+              const stem = s.id.split("/").pop() ?? s.id;
+              return <a class="text-primary underline underline-offset-4" href={`/skills/${toAtsSlug(stem)}`}>{s.data.name}</a>;
+            })}
+          </span>
+          <span class="mt-1 block text-muted-foreground">{counts.skills} topics</span>
+        </TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell class="align-top font-medium">Work history</TableCell>
+        <TableCell>
+          <span class="flex flex-col gap-1">
+            {resume.experience.map((e) => {
+              const stem = e.id.split("/").pop() ?? e.id;
+              return <span><a class="text-primary underline underline-offset-4" href={`/experience/${toAtsSlug(stem)}`}>{e.data.roleName}</a><span class="text-muted-foreground"> · {e.data.startDate}{e.data.endDate ? ` – ${e.data.endDate}` : " – Present"}</span></span>;
+            })}
+          </span>
+          <span class="mt-1 block text-muted-foreground">{counts.experience} roles</span>
+        </TableCell>
+      </TableRow>
+      {resume.education.entry && (
+        <TableRow>
+          <TableCell class="align-top font-medium">Education</TableCell>
+          <TableCell>
+            <a class="text-primary underline underline-offset-4" href={`/education/${toAtsSlug((resume.education.entry.data as { publicSlug?: string }).publicSlug ?? (resume.education.entry.id.split("/").pop() ?? resume.education.entry.id))}`}>{resume.education.entry.data.name}</a>
+            {resume.education.department ? <span> · {resume.education.department.data.name}</span> : null}
+          </TableCell>
+        </TableRow>
+      )}
+      <TableRow>
+        <TableCell class="align-top font-medium">Credentials</TableCell>
+        <TableCell>
+          <span class="flex flex-wrap gap-x-4 gap-y-1">
+            {resume.credentials.map((c) => {
+              const stem = c.id.split("/").pop() ?? c.id;
+              const pub = (c.data as { publicSlug?: string }).publicSlug;
+              return <a class="text-primary underline underline-offset-4" href={`/certifications/${toAtsSlug(pub ?? stem)}`}>{c.data.name}</a>;
+            })}
+          </span>
+          <span class="mt-1 block text-muted-foreground">{counts.credentials} credentials</span>
+        </TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell class="align-top font-medium">Languages</TableCell>
+        <TableCell>{(personData.knowsLanguage ?? ["id", "en"]).map((code: string) => `${code} · ${LANGUAGE_NAMES[code] ?? code}`).join(", ")}</TableCell>
+      </TableRow>
+      {personPlace && (
+        <TableRow>
+          <TableCell class="align-top font-medium">Address</TableCell>
+          <TableCell>{personPlace}</TableCell>
+        </TableRow>
+      )}
+      <TableRow>
+        <TableCell class="align-top font-medium">Canonical</TableCell>
+        <TableCell><span class="text-muted-foreground">/about</span></TableCell>
+      </TableRow>
+    </FactTable>
+    </div>
+  </Section>
+</Layout>

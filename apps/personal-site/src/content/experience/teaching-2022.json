@@ -1,0 +1,25 @@
+{
+  "roleName": "Teaching Assistant for Business Process Management Course",
+  "description": "Prepared comprehensive written and visual educational materials about Process Automation Implementation using ProcessMaker.",
+  "startDate": "2022-02",
+  "endDate": "2022-08",
+  "worksFor": "feb-unpad",
+  "skills": ["business-process-management", "bpmn"],
+  "jobLocation": "Bandung, Indonesia",
+  "employmentType": "CONTRACTOR",
+  "relatedProjects": ["processmaker-vps-2022"],
+  "heroImage": "../../assets/logo-feb-unpad.png",
+  "occupation": {
+    "name": "Teaching Assistant for Business Process Management Course",
+    "description": "ProcessMaker materials, VPS budgeting, and Docker-based multi-instance maintenance.",
+    "responsibilities": [
+      "Prepared comprehensive written and visual educational materials about Process Automation Implementation using ProcessMaker.",
+      "Calculated the monthly budget for a cost-effective Cloud Virtual Private Server (VPS) in accordance with specified requirements.",
+      "Set up, safeguarded, and maintained a Cloud Virtual Private Server (VPS) for multi-instance ProcessMaker deployment using Docker Containers.",
+      "Provisioned isolated ProcessMaker instances on the VPS so every student worked against a live engine instead of a shared instance where one experiment could break the class.",
+      "Verified each deployed instance before coursework use so students executed automation projects on working environments."
+    ],
+    "skillsNote": "ProcessMaker, Docker, VPS administration.",
+    "skills": ["business-process-management", "bpmn"]
+  }
+}

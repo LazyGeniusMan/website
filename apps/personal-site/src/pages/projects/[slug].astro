@@ -1,0 +1,599 @@
+---
+import { Image, getImage } from "astro:assets";
+import { render, getEntries, getEntry, getCollection } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
+import TocNav from "$lib/components/islands/TocNav.svelte";
+import OrgMark from "../../components/OrgMark.astro";
+import DetailRelations from "../../components/DetailRelations.astro";
+import FactTable from "../../components/FactTable.astro";
+import Section from "../../components/Section.astro";
+import { ORG_LOGO_BY_STEM } from "../../lib/orgLogos";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import { Button } from "$lib/components/ui/button/index.js";
+import { Separator } from "$lib/components/ui/separator/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
+import { breadcrumbNode, blogPostingStubNode, heroImageNode, imageIdOf, organizationNode, personRefNode, projectNode, providerOrgNode, resolveSiteUrl, toGraph, webpageDetailNode } from "../../lib/jsonld";
+import { publishedProjects, getPostsForProject, resolveProjectExperience, verificationLabel, roleFallback, toAtsSlug, orgAncestorNames, DISPLAY } from "../../lib/collections";
+
+export async function getStaticPaths() {
+  const cases = await publishedProjects();
+  return cases.map((c) => ({ params: { slug: toAtsSlug(c.id) } }));
+}
+
+const { slug } = Astro.params;
+const cases = await publishedProjects();
+const entry = cases.find((c) => toAtsSlug(c.id) === slug);
+if (!entry) return Astro.redirect("/404");
+const { Content } = await render(entry);
+
+const providerRef = entry.data.provider as unknown as { id: string } | undefined;
+
+let provider: {
+  data: {
+    name: string;
+    type?: "Organization" | "CollegeOrUniversity" | "EducationalOrganization";
+    url?: string;
+    logo?: string;
+  };
+} | null = null;
+if (providerRef) {
+  try {
+    provider = (await getEntry(providerRef as never)) as unknown as {
+      data: {
+        name: string;
+        type?: "Organization" | "CollegeOrUniversity" | "EducationalOrganization";
+        url?: string;
+        logo?: string;
+      };
+    } | null;
+  } catch (e) {
+    throw new Error(`projects/${entry.id}: unresolvable provider ref`, { cause: e });
+  }
+  if (!provider) throw new Error(`projects/${entry.id}: dangling provider ref`);
+}
+const skillRefs = ((entry.data.programmingLanguage ?? []) as never[]);
+
+let langSkills: unknown[] = [];
+if (skillRefs.length) {
+  try {
+    langSkills = await getEntries(skillRefs);
+  } catch (e) {
+    throw new Error(`projects/${entry.id}: unresolvable programmingLanguage ref`, { cause: e });
+  }
+  if (langSkills.length !== skillRefs.length || langSkills.some((s) => !s)) {
+    throw new Error(`projects/${entry.id}: dangling programmingLanguage ref`);
+  }
+}
+
+const partOfRef = entry.data.isPartOf as unknown as { id: string } | undefined;
+type PartOfOrg = {
+  data: {
+    name: string;
+    alternateName?: string;
+    type?: "Organization" | "CollegeOrUniversity" | "EducationalOrganization";
+    url?: string;
+    logo?: string;
+    sameAs?: string[];
+    parentOrganization?: string | { id: string };
+    department?: string | { name: string };
+  };
+};
+let partOf: PartOfOrg | null = null;
+let partOfStem = "";
+if (partOfRef) {
+  partOfStem = (typeof partOfRef === "string" ? partOfRef : partOfRef.id).split("/").pop() ?? "";
+  try {
+    partOf = (await getEntry(partOfRef as never)) as unknown as PartOfOrg | null;
+  } catch (e) {
+    throw new Error(`projects/${entry.id}: unresolvable isPartOf ref`, { cause: e });
+  }
+  if (!partOf) throw new Error(`projects/${entry.id}: dangling isPartOf ref`);
+}
+
+const partOfParentRaw = partOf?.data.parentOrganization;
+const partOfParentStem = partOfParentRaw
+  ? (typeof partOfParentRaw === "string" ? partOfParentRaw : partOfParentRaw.id).split("/").pop() ??
+    ""
+  : "";
+
+const providerStem = providerRef
+  ? (typeof providerRef === "string" ? providerRef : providerRef.id).split("/").pop() ?? ""
+  : "";
+const postsAbout = await getPostsForProject(entry.id);
+
+const authorRefs = ((entry.data.author ?? []) as never[]);
+let authorEntries: { id: string; data: { name: string } }[] = [];
+if (authorRefs.length) {
+  try {
+    authorEntries = (await getEntries(authorRefs)) as { id: string; data: { name: string } }[];
+  } catch (e) {
+    throw new Error(`projects/${entry.id}: unresolvable author ref`, { cause: e });
+  }
+  if (authorEntries.length !== authorRefs.length || authorEntries.some((a) => !a)) {
+    throw new Error(`projects/${entry.id}: dangling author ref`);
+  }
+}
+
+const orgsAll = await getCollection("organizations");
+const orgByStem = new Map(orgsAll.map((o) => [o.id.split("/").pop() ?? o.id, o]));
+const providerOrgFull = providerStem ? orgByStem.get(providerStem) : undefined;
+const partOfOrgFull = partOfStem ? orgByStem.get(partOfStem) : undefined;
+const providerChain = providerOrgFull ? orgAncestorNames(orgsAll, providerOrgFull) : [];
+const partOfChain = partOfOrgFull ? orgAncestorNames(orgsAll, partOfOrgFull) : [];
+
+const relatedExp = await resolveProjectExperience(entry);
+
+const detailLinks: { label: string; href: string }[] = [];
+if (entry.data.url) detailLinks.push({ label: new URL(entry.data.url).hostname, href: entry.data.url });
+if (entry.data.codeRepository) detailLinks.push({ label: "Repository", href: entry.data.codeRepository });
+for (const s of entry.data.sameAs ?? []) {
+  if (s !== entry.data.url && s !== entry.data.codeRepository) {
+    try {
+      detailLinks.push({ label: new URL(s).hostname, href: s });
+    } catch {
+      detailLinks.push({ label: s, href: s });
+    }
+  }
+}
+
+const fmtMonthYear = (ym: string): string => {
+  const m = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/.exec(ym);
+  if (!m) return ym;
+  if (!m[2]) return m[1];
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1));
+  return d.toLocaleString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+};
+const siteUrl = resolveSiteUrl(Astro.site);
+
+
+const data = entry.data;
+
+const orgFallbackSrc = (((providerOrgFull?.data as { logo?: unknown } | undefined)?.logo ?? (partOfOrgFull?.data as { logo?: unknown } | undefined)?.logo ?? (ORG_LOGO_BY_STEM as Record<string, unknown>)[providerStem] ?? (ORG_LOGO_BY_STEM as Record<string, unknown>)[partOfStem] ?? null) as never | null);
+const heroSrc = (data.heroImage ?? (data as { logo?: unknown }).logo ?? orgFallbackSrc ?? null) as never | null;
+const heroIsLogo = !data.heroImage && (!!(data as { logo?: unknown }).logo || !!orgFallbackSrc);
+
+const heroVariant = heroSrc
+  ? await getImage({ src: heroSrc, width: 640, quality: 55, format: "webp" })
+  : null;
+const imageNode = heroImageNode({
+  heroImage: heroVariant,
+  heroCredit: data.heroCredit,
+  heroSource: data.heroSource,
+  pagePath: `/projects/${slug}`,
+});
+
+const gallerySrcs = (((data as { images?: unknown }).images ?? []) as never[]).filter(Boolean);
+const galleryVariants = await Promise.all(
+  gallerySrcs.map((src) => getImage({ src, width: 640, quality: 55, format: "webp" })),
+);
+const galleryNodes = galleryVariants
+  .map((variant) =>
+    heroImageNode({
+      heroImage: variant,
+      heroCredit: data.heroCredit,
+      heroSource: data.heroSource,
+      pagePath: `/projects/${slug}`,
+    }),
+  )
+  .filter((n) => !!n);
+
+const orderIdx = cases.findIndex((c) => c.id === entry.id);
+const newerEntry = orderIdx > 0 ? cases[orderIdx - 1] : null;
+const olderEntry = orderIdx >= 0 && orderIdx < cases.length - 1 ? cases[orderIdx + 1] : null;
+
+const stemOfSiblingRef = (ref: unknown): string => {
+  const raw = typeof ref === "string" ? ref : (ref as { id: string }).id;
+  return raw.split("/").pop() ?? raw;
+};
+const entryExpStems = new Set(
+  ((entry.data.relatedExperience ?? []) as unknown[]).map(stemOfSiblingRef),
+);
+const entryLangStems = new Set(
+  ((entry.data.programmingLanguage ?? []) as unknown[]).map(stemOfSiblingRef),
+);
+const entryProvStems = new Set(
+  [providerStem, partOfStem].filter((s) => s.length > 0),
+);
+const siblingScored = cases
+  .filter((c) => c.id !== entry.id)
+  .map((c) => {
+    const d = c.data as unknown as {
+      provider?: unknown;
+      isPartOf?: unknown;
+      relatedExperience?: unknown[];
+      programmingLanguage?: unknown[];
+    };
+    let score = 0;
+    const pStem = d.provider ? stemOfSiblingRef(d.provider) : "";
+    const partStem = d.isPartOf ? stemOfSiblingRef(d.isPartOf) : "";
+    if ((pStem && entryProvStems.has(pStem)) || (partStem && entryProvStems.has(partStem))) score += 2;
+    for (const s of (d.relatedExperience ?? [])) if (entryExpStems.has(stemOfSiblingRef(s))) score += 2;
+    for (const s of (d.programmingLanguage ?? []))
+      if (entryLangStems.size > 0 && entryLangStems.has(stemOfSiblingRef(s))) score += 1;
+    return { c, score };
+  })
+  .filter((s) => s.score > 0)
+  .sort((a, b) => b.score - a.score || +b.c.data.pubDate - +a.c.data.pubDate);
+const siblings = siblingScored.slice(0, 4).map((s) => s.c);
+
+const imageId = imageIdOf(imageNode);
+const graphNodes = toGraph([
+  projectNode(
+    entry,
+    {
+      partOfName: partOf ? partOf.data.name : null,
+      partOfStem,
+      providerStem,
+      langSkills,
+      relatedExperience: relatedExp,
+    },
+    siteUrl,
+    imageId,
+  ),
+
+
+
+  ...(partOf
+    ? [
+        organizationNode({
+          slug: partOfStem,
+          siteUrl,
+          name: partOf.data.name,
+          type: partOf.data.type ?? "Organization",
+          ...(partOf.data.alternateName ? { alternateName: partOf.data.alternateName } : {}),
+          ...(partOf.data.url ? { url: partOf.data.url } : {}),
+          ...(partOf.data.logo ? { logo: partOf.data.logo } : {}),
+          ...(partOf.data.sameAs?.length ? { sameAs: [...partOf.data.sameAs] } : {}),
+          ...(partOfParentStem ? { parentStem: partOfParentStem } : {}),
+          ...(partOf.data.department ? { department: partOf.data.department } : {}),
+        }),
+      ]
+    : []),
+
+  ...(provider
+    ? [
+        providerOrgNode(siteUrl, providerStem, {
+          name: provider.data.name,
+          type: provider.data.type,
+          url: provider.data.url,
+          ...(provider.data.logo ? { logo: provider.data.logo } : {}),
+        }),
+      ]
+    : []),
+
+
+
+  ...postsAbout.map((p) => blogPostingStubNode(siteUrl, p.id, p.data.title)),
+  webpageDetailNode(
+    `/projects/${slug}`,
+    siteUrl,
+    entry.data.title,
+    imageId ? { primaryImageOfPage: { "@id": imageId } } : undefined,
+  ),
+  personRefNode(siteUrl),
+  breadcrumbNode(`/projects/${slug}`, [
+    { name: "Home", item: "/" },
+    { name: "Projects", item: "/projects" },
+    { name: entry.data.title, item: `/projects/${slug}` },
+  ]),
+  ...(imageNode ? [imageNode] : []),
+  ...galleryNodes,
+]);
+---
+
+<Layout
+  title={entry.data.title}
+  description={entry.data.description}
+  lang={(entry.data.inLanguage as string) ?? "id"}
+  graphNodes={graphNodes}
+  breadcrumb={[{ name: "Home", item: "/" }, { name: "Projects", item: "/projects" }, { name: entry.data.title }]}
+>
+  <div slot="secondary">
+    <TocNav
+      client:visible
+      items={[
+        { id: "hero", label: "Project" },
+        ...(galleryVariants.length > 0 ? [{ id: "gallery", label: "Gallery" }] : []),
+        { id: "content", label: "Content" },
+        ...((relatedExp.length > 0 || siblings.length > 0 || postsAbout.length > 0 || langSkills.length > 0 || providerStem || partOfStem || detailLinks.length > 0) ? [{ id: "relations", label: "Relations" }] : []),
+        { id: "metadata", label: "Metadata" },
+      ]}
+    />
+  </div>
+  <article class="page-margin pt-10 md:pt-16" aria-labelledby="case-heading" data-motion>
+    <h1 id="case-heading" class="title-record mt-3 max-w-4xl text-balance">
+      {entry.data.title}
+    </h1>
+    <p class="text-muted-foreground mt-4 text-lg">
+      {roleFallback(entry.data.role)}{provider && providerStem ? <> · <a class="text-primary underline underline-offset-4" href={`/organizations/${toAtsSlug(providerStem)}`}>{(provider as { data: { name: string } }).data.name}</a></> : partOf ? <> · <a class="text-primary underline underline-offset-4" href={`/organizations/${toAtsSlug(partOfStem)}`}>{partOf.data.name}</a></> : null} · <time datetime={entry.data.pubDate.toISOString()}>{entry.data.pubDate.toLocaleString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })}</time>
+      {entry.data.verificationStatus ? (
+        <span role="status"> · {verificationLabel(entry.data.verificationStatus)}</span>
+      ) : null}
+    </p>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">{entry.data.description}</p>
+    {entry.data.outcome && entry.data.outcome !== entry.data.description && (
+      <p class="mt-4 max-w-xl text-lg">Outcome: {entry.data.outcome}</p>
+    )}
+    {entry.data.disambiguatingDescription && (
+      <p class="text-muted-foreground mt-4 max-w-xl border-l-2 pl-4 text-lg">{entry.data.disambiguatingDescription}</p>
+    )}
+    <div class="mt-5 flex flex-wrap gap-2">
+      <Badge class="rounded-none text-sm" variant="secondary">{DISPLAY[entry.data.type]}</Badge>
+      {entry.data.verificationStatus && <Badge class="rounded-none text-sm" variant="outline">{verificationLabel(entry.data.verificationStatus)}</Badge>}
+      {entry.data.applicationCategory && <Badge class="rounded-none text-sm" variant="outline">{entry.data.applicationCategory}</Badge>}
+      {typeof entry.data.isAccessibleForFree === "boolean" && <Badge class="rounded-none text-sm" variant="outline">{entry.data.isAccessibleForFree ? "Free access" : "Paid access"}</Badge>}
+    </div>
+    {heroVariant && heroSrc ? (
+      <figure id="hero" class="mt-10 max-w-full min-w-0 scroll-mt-24" data-motion>
+        <Image
+          src={heroSrc}
+          width={640}
+          format="webp"
+          quality={55}
+          alt={heroIsLogo ? `${entry.data.title} logo` : entry.data.title}
+          loading="lazy"
+          decoding="async"
+          class={heroIsLogo ? "aspect-[21/9] w-full rounded-none object-contain object-center bg-card p-6" : "aspect-[21/9] w-full rounded-none object-cover object-center"}
+        />
+        {(data.heroCredit || data.heroSource) && <figcaption class="credit-line mt-2">{data.heroCredit}{data.heroSource && <> <a class="underline underline-offset-4" href={data.heroSource}>Source</a></>}</figcaption>}
+      </figure>
+    ) : (
+      <figure id="hero" class="mt-10 max-w-full min-w-0 scroll-mt-24" data-motion>
+        <div class="flex aspect-[21/9] w-full min-w-0 max-w-full items-center justify-center rounded-none">
+          <OrgMark name={provider?.data.name ?? partOf?.data.name ?? entry.data.title} note={providerStem || partOfStem ? "Organization" : "Project"} />
+        </div>
+        {(data.heroCredit || data.heroSource) && <figcaption class="credit-line mt-2">{data.heroCredit}{data.heroSource && <> <a class="underline underline-offset-4" href={data.heroSource}>Source</a></>}</figcaption>}
+      </figure>
+    )}
+    {galleryVariants.length > 0 && (
+      <div id="gallery" class="mt-10 scroll-mt-24" data-motion>
+        <Card.Root class="rounded-none">
+          <Card.Header>
+            <Card.Title class="text-lg"><h2 id="gallery-heading" class="text-lg font-medium">Gallery</h2></Card.Title>
+            <Card.Description>{galleryVariants.length} {galleryVariants.length === 1 ? "image" : "images"}.</Card.Description>
+          </Card.Header>
+          <Card.Content>
+            <div class="grid gap-6 md:grid-cols-2">
+              {gallerySrcs.map((src, i) => (
+                <figure>
+                  <Image
+                    src={src as never}
+                    width={640}
+                    format="webp"
+                    quality={55}
+                    alt={`${entry.data.title}, image ${i + 1}`}
+                    loading="lazy"
+                    decoding="async"
+                    class="aspect-[21/9] w-full object-cover"
+                  />
+                  {(data.heroCredit || data.heroSource) && <figcaption class="credit-line mt-2">{data.heroCredit}{data.heroSource && <> <a class="underline underline-offset-4" href={data.heroSource}>Source</a></>}</figcaption>}
+                </figure>
+              ))}
+            </div>
+          </Card.Content>
+        </Card.Root>
+      </div>
+    )}
+    <div id="content" class="mt-10 scroll-mt-24" data-motion>
+      <Card.Root class="rounded-none">
+        <Card.Header>
+          <Card.Title class="text-lg"><h2 id="content-heading" class="text-lg font-medium">Content</h2></Card.Title>
+          <Card.Description>Full text.</Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <div class="prose-case">
+            <Content />
+          </div>
+        </Card.Content>
+      </Card.Root>
+    </div>
+    {(olderEntry || newerEntry) && (
+      <nav aria-label="More projects" class="mt-10" data-motion>
+        <Separator class="mb-6" />
+        <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:justify-between">
+          {olderEntry ? (
+            <Button rel="prev" variant="link" href={`/projects/${toAtsSlug(olderEntry.id)}`} class="rounded-none h-auto max-w-md min-w-0 justify-start p-0 text-left text-lg whitespace-normal underline">
+              <span aria-hidden="true">← </span>{olderEntry.data.title}
+            </Button>
+          ) : <span />}
+          {newerEntry ? (
+            <Button rel="next" variant="link" href={`/projects/${toAtsSlug(newerEntry.id)}`} class="rounded-none h-auto max-w-md min-w-0 justify-start p-0 text-left text-lg whitespace-normal underline sm:text-right">
+              {newerEntry.data.title}<span aria-hidden="true"> →</span>
+            </Button>
+          ) : <span />}
+        </div>
+      </nav>
+    )}
+    {(relatedExp.length > 0 || siblings.length > 0 || postsAbout.length > 0 || langSkills.length > 0 || providerStem || partOfStem || detailLinks.length > 0) && (
+      <DetailRelations
+        description="Every linked metadata for this project."
+        groups={[
+          ...(langSkills.length > 0 ? [{ label: "Skills", items: (langSkills as { id: string; data: { name: string; heroImage?: unknown; logo?: unknown } }[]).map((s) => ({ title: s.data.name, href: `/skills/${toAtsSlug(s.id.split("/").pop() ?? s.id)}`, thumb: ((s.data.heroImage ?? s.data.logo ?? null) as never | null), thumbName: s.data.name })) }] : []),
+          ...(relatedExp.length > 0 ? [{ label: "Experience", items: (relatedExp as { id: string; data: { roleName: string; heroImage?: unknown; logo?: unknown } }[]).map((e) => ({ title: e.data.roleName, href: `/experience/${toAtsSlug(e.id.split("/").pop() ?? e.id)}`, thumb: ((e.data.heroImage ?? e.data.logo ?? null) as never | null), thumbName: e.data.roleName })) }] : []),
+          ...(siblings.length > 0 ? [{ label: "Projects", items: siblings.map((p) => ({ title: p.data.title, href: `/projects/${toAtsSlug(p.id.split("/").pop() ?? p.id)}`, thumb: (((p.data as { heroImage?: unknown }).heroImage ?? (p.data as { logo?: unknown }).logo ?? null) as never | null), thumbName: p.data.title })) }] : []),
+          ...(postsAbout.length > 0 ? [{ label: "Blog", items: postsAbout.map((p) => ({ title: p.data.title, href: `/blog/${toAtsSlug(p.id.split("/").pop() ?? p.id)}`, meta: String(p.data.pubDate.getFullYear()), thumb: (((p.data as { heroImage?: unknown }).heroImage ?? (p.data as { logo?: unknown }).logo ?? null) as never | null), thumbName: p.data.title })) }] : []),
+          ...((providerStem || partOfStem) ? [{ label: "Organizations", items: [...new Map([
+            ...(providerStem ? [[providerStem, { title: providerOrgFull?.data.name ?? providerStem, href: `/organizations/${toAtsSlug(providerStem)}`, thumb: ((providerOrgFull?.data as { logo?: unknown } | undefined)?.logo ?? null) as never | null, thumbName: providerOrgFull?.data.name ?? providerStem }] as const] : []),
+            ...(partOfStem && partOfStem !== providerStem ? [[partOfStem, { title: partOfOrgFull?.data.name ?? partOfStem, href: `/organizations/${toAtsSlug(partOfStem)}`, thumb: ((partOfOrgFull?.data as { logo?: unknown } | undefined)?.logo ?? null) as never | null, thumbName: partOfOrgFull?.data.name ?? partOfStem }] as const] : []),
+          ]).values()] }] : []),
+          ...(detailLinks.length > 0 ? [{ label: "Links", items: detailLinks.map((l) => ({ title: l.label, href: l.href, thumb: null, thumbName: l.label })) }] : []),
+        ]}
+      />
+    )}
+    <Section variant="ledger" label="Metadata">
+      <section id="metadata" class="scroll-mt-24">
+      <FactTable title="Metadata" caption="Every field on this project, with links to its relations.">
+        <Table.Row>
+          <Table.Cell class="w-36 align-top font-medium">Title</Table.Cell>
+          <Table.Cell>{entry.data.title} <span class="text-muted-foreground">· {DISPLAY[entry.data.type]}</span></Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Description</Table.Cell>
+          <Table.Cell>{entry.data.description}</Table.Cell>
+        </Table.Row>
+        {entry.data.outcome && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Outcome</Table.Cell>
+            <Table.Cell>{entry.data.outcome}</Table.Cell>
+          </Table.Row>
+        )}
+        {entry.data.disambiguatingDescription && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Note</Table.Cell>
+            <Table.Cell>{entry.data.disambiguatingDescription}</Table.Cell>
+          </Table.Row>
+        )}
+        {entry.data.role && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Role</Table.Cell>
+            <Table.Cell>{entry.data.role}</Table.Cell>
+          </Table.Row>
+        )}
+        {authorEntries.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Author</Table.Cell>
+            <Table.Cell>
+              {authorEntries.map((a, i) => (
+                <span>{i > 0 && ", "}<a class="text-primary underline underline-offset-4" href="/about">{a.data.name}</a></span>
+              ))}
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {provider && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Provider</Table.Cell>
+            <Table.Cell>
+              <a class="text-primary underline underline-offset-4" href={`/organizations/${toAtsSlug(providerStem)}`}>{(provider as { data: { name: string } }).data.name}</a>
+              {(provider as { data: { url?: string } }).data.url && (
+                <span> · <a class="text-primary underline underline-offset-4" href={(provider as { data: { url: string } }).data.url}>{new URL((provider as { data: { url: string } }).data.url).hostname}</a></span>
+              )}
+              {providerChain.length > 0 && <span class="text-muted-foreground"> · Part of {providerChain.join(" · ")}</span>}
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {partOf && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Part of</Table.Cell>
+            <Table.Cell>
+              <a class="text-primary underline underline-offset-4" href={`/organizations/${toAtsSlug(partOfStem)}`}>{partOf.data.name}</a>
+              {typeof partOf.data.department === "string"
+                ? ` · ${partOf.data.department}`
+                : partOf.data.department?.name
+                  ? ` · ${partOf.data.department.name}`
+                  : ""}
+              {partOfChain.length > 0 && <span class="text-muted-foreground"> · {partOfChain.join(" · ")}</span>}
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {langSkills.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Languages</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {langSkills.map((s: unknown) => {
+                  const skill = s as { id: string; data: { name: string } };
+                  return <Badge class="rounded-none text-sm" href={`/skills/${toAtsSlug(skill.id.split("/").pop() ?? skill.id)}`} variant="outline">{skill.data.name}</Badge>;
+                })}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {(entry.data.tags?.length ?? 0) > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Tags</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{(entry.data.tags ?? []).join(", ")}</span></Table.Cell>
+          </Table.Row>
+        )}
+        {(entry.data.keywords?.length ?? 0) > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Keywords</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{(entry.data.keywords ?? []).join(", ")}</span></Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Language</Table.Cell>
+          <Table.Cell>{entry.data.inLanguage ?? "id"}</Table.Cell>
+        </Table.Row>
+        {((data as { logo?: unknown }).logo || data.heroImage || data.heroCredit || data.heroSource) && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Hero</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{heroIsLogo ? "Project logo" : (data.heroCredit ?? "Project illustration")}</span>{data.heroSource && <> <a class="text-primary underline underline-offset-4" href={data.heroSource}>Source</a></>}</Table.Cell>
+          </Table.Row>
+        )}
+        {gallerySrcs.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Gallery</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{gallerySrcs.length} {gallerySrcs.length === 1 ? "image" : "images"} below the hero</span></Table.Cell>
+          </Table.Row>
+        )}
+        {relatedExp.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Related experience</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {(relatedExp as { id: string; data: { roleName: string } }[]).map((e) => (
+                  <Badge class="rounded-none text-sm" href={`/experience/${toAtsSlug(e.id.split("/").pop() ?? e.id)}`} variant="outline">{e.data.roleName}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {(entry.data.url || entry.data.codeRepository || (entry.data.sameAs ?? []).length > 0) && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Links</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-x-4 gap-y-1">
+                {entry.data.url && <a class="text-primary underline underline-offset-4" href={entry.data.url}>{new URL(entry.data.url).hostname}</a>}
+                {entry.data.codeRepository && entry.data.codeRepository !== entry.data.url && <a class="text-primary underline underline-offset-4" href={entry.data.codeRepository}>Repository</a>}
+                {(entry.data.sameAs ?? []).filter((s) => s !== entry.data.url && s !== entry.data.codeRepository).map((s) => (
+                  <a class="text-primary underline underline-offset-4" href={s}>{(() => { try { return new URL(s).hostname; } catch { return s; } })()}</a>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Dates</Table.Cell>
+          <Table.Cell><span class="text-muted-foreground">
+            Published <time datetime={entry.data.pubDate.toISOString()}>{entry.data.pubDate.toISOString().slice(0, 10)}</time>
+            {entry.data.dateCreated && <> · Created <time datetime={(entry.data.dateCreated as Date).toISOString()}>{(entry.data.dateCreated as Date).toISOString().slice(0, 10)}</time></>}
+            {entry.data.dateModified && <> · Updated <time datetime={(entry.data.dateModified as Date).toISOString()}>{(entry.data.dateModified as Date).toISOString().slice(0, 10)}</time></>}
+            {entry.data.startDate && <> · Started <time datetime={entry.data.startDate}>{fmtMonthYear(entry.data.startDate)}</time></>}
+            {entry.data.endDate && <> · Ended <time datetime={entry.data.endDate}>{fmtMonthYear(entry.data.endDate)}</time></>}
+            {` · ${entry.data.inLanguage ?? "id"}`}
+          </span></Table.Cell>
+        </Table.Row>
+        {(entry.data.applicationCategory || entry.data.operatingSystem || ("offers" in entry.data && entry.data.offers) || (entry.data as { license?: unknown }).license || (entry.data as { issn?: unknown }).issn || typeof entry.data.isAccessibleForFree === "boolean") && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Distribution</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">
+              {[entry.data.applicationCategory, entry.data.operatingSystem].filter(Boolean).join(" · ")}
+              {typeof entry.data.isAccessibleForFree === "boolean" && ` · ${entry.data.isAccessibleForFree ? "Free access" : "Paid access"}`}
+              {(entry.data as { issn?: string }).issn && ` · ISSN ${(entry.data as { issn?: string }).issn}`}
+            </span>
+              {typeof (entry.data as { license?: unknown }).license === "string" && <> <span class="text-muted-foreground">· License</span> <a class="text-primary underline underline-offset-4" href={(entry.data as { license?: string }).license as string}>{(entry.data as { license?: string }).license}</a></>}
+              {(entry.data as { license?: { name: string; url?: string } }).license && typeof (entry.data as { license?: unknown }).license === "object" && <> <span class="text-muted-foreground">· License</span> {(entry.data as { license?: { name: string; url?: string } }).license!.url ? <a class="text-primary underline underline-offset-4" href={(entry.data as { license?: { name: string; url?: string } }).license!.url as string}>{(entry.data as { license?: { name: string } }).license!.name}</a> : (entry.data as { license?: { name: string } }).license!.name}</>}
+              {typeof (entry.data as { offers?: unknown }).offers === "string" && <span class="text-muted-foreground"> · {(entry.data as { offers?: string }).offers}</span>}
+              {(entry.data as { offers?: { price?: string; priceCurrency?: string; availability?: string; url?: string } }).offers && typeof (entry.data as { offers?: unknown }).offers === "object" && (
+                <span class="text-muted-foreground"> · Offer {(entry.data as { offers?: { price: string } }).offers!.price}{(entry.data as { offers?: { priceCurrency?: string } }).offers?.priceCurrency ? ` ${(entry.data as { offers?: { priceCurrency?: string } }).offers!.priceCurrency}` : ""}{(entry.data as { offers?: { availability?: string } }).offers?.availability ? ` · ${(entry.data as { offers?: { availability?: string } }).offers!.availability}` : ""}</span>
+              )}
+              {(entry.data as { offers?: { url?: string } }).offers && typeof (entry.data as { offers?: unknown }).offers === "object" && (entry.data as { offers?: { url?: string } }).offers!.url && <> <a class="text-primary underline underline-offset-4" href={(entry.data as { offers?: { url?: string } }).offers!.url as string}>Offer link</a></>}
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {entry.data.verificationStatus && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Verification</Table.Cell>
+            <Table.Cell>{verificationLabel(entry.data.verificationStatus)}{` · ${entry.data.verificationStatus}`}</Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Canonical</Table.Cell>
+          <Table.Cell><span class="text-muted-foreground">/projects/{slug}</span></Table.Cell>
+        </Table.Row>
+      </FactTable>
+      </section>
+    </Section>
+  </article>
+</Layout>

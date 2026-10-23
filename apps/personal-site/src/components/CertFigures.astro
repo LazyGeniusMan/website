@@ -1,0 +1,77 @@
+---
+import * as Card from "$lib/components/ui/card/index.js";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import { cn } from "$lib/utils.js";
+import { creditFor } from "../data/credits";
+
+interface Props {
+  slugs: string[];
+}
+
+const { slugs } = Astro.props;
+
+const MAP: Record<string, { creditId: string; sealLabel: string }[]> = {
+  teps: [{ creditId: "cert-teps", sealLabel: "TEPS" }],
+  efset: [{ creditId: "cert-efset", sealLabel: "EF SET" }],
+  "gits-internship": [{ creditId: "cert-gits-internship", sealLabel: "GITS" }],
+  "rutgers-swam": [
+    { creditId: "cert-rutgers-automation", sealLabel: "SWAM · Automation" },
+    { creditId: "cert-rutgers-ai-audit", sealLabel: "SWAM · AI Audit" },
+    { creditId: "cert-rutgers-preprocessing", sealLabel: "SWAM · Preprocessing" },
+    { creditId: "cert-rutgers-mining", sealLabel: "SWAM · Mining" },
+  ],
+};
+
+const films = slugs.flatMap((s) => MAP[s] ?? []).map((f) => ({
+  ...f,
+  credit: creditFor(f.creditId),
+}));
+---
+
+{films.length > 0 && (
+  <div class={cn("min-w-0", films.length > 1 && "grid gap-8 md:grid-cols-2")} data-motion>
+    {films.map((f) => (
+      <Card.Root class="rounded-none">
+        <Card.Header>
+          <Card.Title class="text-lg">{f.credit.caption}</Card.Title>
+          <Card.Description>
+            <Badge class="rounded-none" variant="secondary">{f.sealLabel}</Badge>
+          </Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <figure data-seal={f.credit.sealSlug ?? f.creditId} data-vector-seal="true" class="m-0">
+            <svg
+              viewBox="0 0 200 160"
+              role="img"
+              aria-label={`Vector seal for ${f.credit.caption}`}
+              class="w-full"
+            >
+              <g fill="none" stroke="currentColor" stroke-opacity="0.5" stroke-width="2">
+                <circle cx="100" cy="62" r="40"></circle>
+                <circle cx="100" cy="62" r="32" stroke-opacity="0.35"></circle>
+                <path d="M84 96 L76 138 L100 124 L124 138 L116 96"></path>
+              </g>
+              <text
+                x="100"
+                y="66"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                font-family="Barlow Condensed, Barlow, sans-serif"
+                font-weight="700"
+                font-size="16"
+                fill="currentColor"
+              >
+                {f.sealLabel}
+              </text>
+            </svg>
+          </figure>
+        </Card.Content>
+        <Card.Footer>
+          <p class="credit-line m-0">
+            Vector seal illustration, no raster scan. {f.credit.caption} {f.credit.credit}
+          </p>
+        </Card.Footer>
+      </Card.Root>
+    ))}
+  </div>
+)}

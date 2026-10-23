@@ -1,0 +1,9 @@
+{
+  "name": "PT Navcore Nextology",
+  "alternateName": "Navcore",
+  "description": "PT Navcore Nextology, an information technology and telecommunications solution provider for enterprise, telecom, and travel industries behind the NEXTPLATFORM less-code platform (NEXTAPI, NEXTFLOW).",
+  "type": "Organization",
+  "url": "https://nextplatform.ai/",
+  "logo": "../../assets/logo-navcore.png",
+  "sameAs": ["https://www.navcore.com/", "https://www.linkedin.com/company/next-platform-ai"]
+}

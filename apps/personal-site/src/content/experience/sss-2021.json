@@ -1,0 +1,25 @@
+{
+  "roleName": "Website administrator",
+  "description": "Built Ghost blog for fishery small and medium enterprise (SME) education, catalog design, and Maps onboarding.",
+  "startDate": "2021-01",
+  "endDate": "2021-02",
+  "worksFor": "student-study-service",
+  "skills": ["information-systems"],
+  "jobLocation": "Bandung, Indonesia",
+  "employmentType": "PART_TIME",
+  "relatedProjects": ["website-for-student-study-service-2021"],
+  "heroImage": "../../assets/work-sss-2021.png",
+  "occupation": {
+    "name": "Website administrator",
+    "description": "Ghost-hosted SME content site, catalog design, and Maps onboarding.",
+    "responsibilities": [
+      "Developed, designed, and maintained a blog posting educational content about fishery products for small and medium enterprises (SMEs).",
+      "Set up the Ghost site structure and design so project members could publish study material and updates without hand-built pages.",
+      "Created content for social media and blog.",
+      "Designed catalog for SMEs.",
+      "Helped SMEs register their location to Google Maps."
+    ],
+    "skillsNote": "Ghost CMS, content creation, catalog design.",
+    "skills": ["information-systems"]
+  }
+}

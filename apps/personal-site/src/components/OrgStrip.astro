@@ -1,0 +1,86 @@
+---
+import { Image } from "astro:assets";
+import * as Avatar from "$lib/components/ui/avatar/index.js";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import { Separator } from "$lib/components/ui/separator/index.js";
+import { monogramOf } from "../lib/monogram";
+
+interface Mark {
+  href: string;
+  name: string;
+  logo?: any;
+}
+
+interface Props {
+  marks: Mark[];
+}
+
+const { marks } = Astro.props;
+---
+
+<!-- ~keep: OrgStrip uses shadcn Card/Badge/Separator + Avatar.Root with astro
+  Image or a static avatar-fallback span (same data-slot hook the shadcn
+  Fallback emits). No Avatar.Image: bits-ui Image renders display:none until
+  its client loader flips status to loaded; effects never run in zero-JS SSG,
+  so logos would stay hidden. No Svelte Avatar.Fallback either: nested from
+  .astro it renders as a separate Svelte root, so bits-ui Root context never
+  reaches it and SSR prerender throws `Context Avatar.Root not found`.
+  Astro Image (160px WebP, never raw PNG) inside Avatar.Root is static-safe;
+  monogramOf() static fallback covers missing logos. Official crests are never
+  invented. Zero JS by design.
+-->
+{marks.length > 0 && (
+<Card.Root class="rounded-none" data-motion>
+  <Card.Content>
+    <ul class="flex min-w-0 flex-wrap gap-x-10 gap-y-8">
+      {marks.map((m) => {
+        const { initials, bg, fg } = monogramOf(m.name);
+        return (
+          <li class="w-40 min-w-0">
+            <figure class="m-0 min-w-0">
+              <a href={m.href} aria-label={m.name} class="block aspect-square w-full min-w-0">
+                <Avatar.Root
+                  class="flex aspect-square w-full items-center justify-center rounded-none after:rounded-none select-none"
+                  style={m.logo ? undefined : `background-color: ${bg}; color: ${fg};`}
+                  role="img"
+                  aria-label={`${m.name} monogram`}
+                >
+                  {m.logo ? (
+                    <Image
+                      src={m.logo}
+                      alt={`${m.name} logo`}
+                      width={160}
+                      height={160}
+                      format="webp"
+                      quality={70}
+                      loading="lazy"
+                      decoding="async"
+                      class="aspect-square w-full rounded-none object-cover"
+                    />
+                  ) : (
+                    <span
+                      data-slot="avatar-fallback"
+                      aria-hidden="true"
+                      style="font-family: var(--font-display); font-weight: 700; font-size: 1.5rem;"
+                    >{initials}</span>
+                  )}
+                </Avatar.Root>
+              </a>
+              <figcaption class="mt-2 min-w-0 truncate text-base leading-snug" title={m.name}>
+                <Badge href={m.href} variant="outline" class="max-w-full rounded-none truncate">{m.name}</Badge>
+              </figcaption>
+            </figure>
+          </li>
+        );
+      })}
+    </ul>
+  </Card.Content>
+  <Separator />
+  <Card.Footer>
+    <p class="credit-line m-0 max-w-3xl">
+      Marks are monogram illustrations, not official crests. Each record names its source.
+    </p>
+  </Card.Footer>
+</Card.Root>
+)}

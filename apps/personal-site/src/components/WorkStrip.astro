@@ -1,0 +1,73 @@
+---
+import * as Card from "$lib/components/ui/card/index.js";
+import { Separator } from "$lib/components/ui/separator/index.js";
+import { publishedProjects, toAtsSlug } from "../lib/collections";
+import Icon from "./Icon.svelte";
+import ArrowRight from "@lucide/svelte/icons/arrow-right";
+
+export type WorkKey = "digits-2022" | "digits-2020" | "ojs-2021" | "sss-2021";
+
+interface Props {
+  which?: WorkKey[];
+  matchTitles?: string[];
+}
+
+const { which: whichProp, matchTitles } = Astro.props;
+
+const NEEDLES: Record<WorkKey, string> = {
+  "digits-2022": "redesign for digits",
+  "digits-2020": "website for digits unpad",
+  "ojs-2021": "journal of digital innovation",
+  "sss-2021": "student study service",
+};
+const LABELS: Record<WorkKey, string> = {
+  "digits-2022": "Website redesign for DIGITS Unpad, 2022.",
+  "digits-2020": "Website migration for DIGITS Unpad, 2020.",
+  "ojs-2021": "Publishing platform for the Journal of Digital Innovation Studies, 2021.",
+  "sss-2021": "Website for Student Study Service, 2021.",
+};
+
+const cases = await publishedProjects();
+const which: WorkKey[] =
+  whichProp ??
+  ((matchTitles ?? []).length
+    ? (Object.keys(NEEDLES) as WorkKey[])
+        .filter((key) =>
+          (matchTitles ?? []).some((t) => t.toLowerCase().includes(NEEDLES[key])),
+        )
+        .slice(0, 3)
+    : []);
+const films = which.map((key) => {
+  const entry = cases.find((c) => c.data.title.toLowerCase().includes(NEEDLES[key]));
+  return { key, entry, label: LABELS[key] };
+});
+---
+
+{which.length > 0 && (
+  <Card.Root class="rounded-none" data-motion>
+    <Card.Content class="px-0">
+      <ol class="m-0 list-none p-0">
+        {films.map((f, i) => (
+          <>
+            {i > 0 && <Separator />}
+            <li>
+              <a
+                class="ledger-row min-w-0 px-(--card-spacing)"
+                href={f.entry ? `/projects/${toAtsSlug(f.entry.id)}` : "/projects"}
+                aria-label={f.label}
+              >
+                <span class="min-w-0 text-xl font-medium break-words md:text-2xl">
+                  {f.entry ? f.entry.data.title : f.label}
+                </span>
+                <span class="ledger-detail min-w-0 text-lg break-words">{f.label}</span>
+                <span class="flex items-center" aria-hidden="true">
+                  <Icon of={ArrowRight} data-icon="inline-end" aria-hidden="true" />
+                </span>
+              </a>
+            </li>
+          </>
+        ))}
+      </ol>
+    </Card.Content>
+  </Card.Root>
+)}

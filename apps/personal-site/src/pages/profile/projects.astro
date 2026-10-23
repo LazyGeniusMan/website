@@ -1,0 +1,14 @@
+---
+import GoRedirect from "../../components/GoRedirect.astro";
+
+const target = "/projects";
+const canonical = "https://yansyah.my.id/projects";
+const label = "Projects";
+const blurb = "This page has moved to Projects.";
+---
+
+<GoRedirect target={target} canonical={canonical} label={label} blurb={blurb}>
+  <script is:inline>
+    window.location.replace("/projects");
+  </script>
+</GoRedirect>

@@ -1,0 +1,13 @@
+---
+import GoRedirect from "../../components/GoRedirect.astro";
+
+const target = "https://www.linkedin.com/in/andriyansyah-nurrachman/";
+const label = "LinkedIn";
+const blurb = "Redirecting to LinkedIn.";
+---
+
+<GoRedirect target={target} label={label} blurb={blurb}>
+  <script is:inline>
+    window.location.replace("https://www.linkedin.com/in/andriyansyah-nurrachman/");
+  </script>
+</GoRedirect>

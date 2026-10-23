@@ -1,0 +1,20 @@
+{
+  "name": "design-system",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Tailwind v4 CSS-first design tokens shared by all sites.",
+  "type": "module",
+  "exports": {
+    "./base.css": "./base.css",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "tw-animate-css": "catalog:"
+  },
+  "peerDependencies": {
+    "tailwindcss": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

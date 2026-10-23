@@ -1,0 +1,36 @@
+---
+import { cn } from "$lib/utils.js";
+
+interface Props {
+  variant: "sheet" | "spine" | "ledger";
+  labelledby?: string;
+  label?: string;
+}
+
+const { variant, labelledby, label } = Astro.props;
+
+const cls = cn(
+  "page-margin",
+  variant === "sheet" && "sheet-hero pt-10 md:pt-16",
+  variant === "spine" && "section-gap spine-band",
+  variant === "ledger" && "section-gap ledger-band",
+);
+---
+
+<!-- ~keep: Section layout-only exception to Card composition.
+  Section is a page-frame primitive, not a surface. It provides the taste-skill
+  frame (equal outer margins via page-margin, section rhythm via section-gap)
+  and lets each section carry its own heading + full content. Wrapping every
+  page hero in a Card would add a surface (bg-card, ring) where the design
+  calls for ground. Layout classes only, all token-derived. No custom hex,
+  no gradients/shadows/glass, no eyebrows. Conditionals via cn().
+-->
+{variant === "sheet" ? (
+  <section class={cls} aria-labelledby={labelledby} data-motion>
+    <slot />
+  </section>
+) : (
+  <section class={cls} aria-label={label} data-motion>
+    <slot />
+  </section>
+)}

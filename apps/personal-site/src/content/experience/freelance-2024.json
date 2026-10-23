@@ -1,0 +1,25 @@
+{
+  "roleName": "Business Process & Enterprise System Specialist",
+  "description": "Managed and delivered end-to-end business process management and enterprise system project lifecycle.",
+  "startDate": "2024-10",
+  "worksFor": "freelance",
+  "skills": ["business-process-management", "information-systems", "python", "sql"],
+  "jobLocation": "Bandung, Indonesia",
+  "employmentType": "CONTRACTOR",
+  "relatedProjects": ["makadinah", "kinaia", "tunaya"],
+  "heroImage": "../../assets/logo-freelance.png",
+  "occupation": {
+    "name": "Business Process & Enterprise System Specialist",
+    "description": "Freelance delivery of process design and backend services for kinaia, tunaya, and makadinah.",
+    "responsibilities": [
+      "Managed project initiation and planning phase, working closely with partners to define man-hour estimations and project timelines. Successfully negotiated project scope, deliverables, and financial agreements with clients.",
+      "Developed detailed functional requirements based on project goals and scope.",
+      "Designed and developed REST API backend services using Hono and Drizzle ORM that aligned with project requirements.",
+      "Integrated backend services with diverse 3rd party systems, including Enterprise Resource Planning (ERP), Identity and Access Management (IAM), Notification Services (Email & Messaging), Job & Task Schedulers, and Search Engines.",
+      "Developed GitLab Continuous Integration and Delivery (CI/CD) for automated deployment to Cloudflare infrastructures (Workers, D1, R2, KV, Queue, Workflow).",
+      "Delivered training sessions to clients for effective application usage."
+    ],
+    "skillsNote": "Business process modeling, REST API backend services with Hono and Drizzle ORM, GitLab CI/CD to Cloudflare infrastructure.",
+    "skills": ["business-process-management", "information-systems", "python", "sql"]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Makers Institute",
+  "description": "Makers Institute, an information technology competence development center in Bandung providing software engineering learning space, bootcamps, and tech community programs.",
+  "type": "Organization",
+  "url": "https://makersinstitute.io",
+  "logo": "../../assets/logo-makers-institute.png",
+  "sameAs": ["https://www.linkedin.com/company/makers-institute"]
+}

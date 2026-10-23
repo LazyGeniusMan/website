@@ -1,0 +1,133 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Section from "../components/Section.astro";
+import ThumbPlaceholder from "../components/ThumbPlaceholder.astro";
+import { Image, getImage } from "astro:assets";
+import { abs, breadcrumbNode, collectionPageNode, personRefNode, resolveSiteUrl, toGraph } from "../lib/jsonld";
+import Filter from "../components/islands/Filter.svelte";
+import { employmentTypeLabel, jobLocationName, toAtsSlug } from "../lib/collections";
+import { EXPERIENCE_PAGE_SIZE, EXPERIENCE_PATH, experienceMonthYear, getExperienceList, getExperienceThumbSources } from "../lib/lists/experience";
+
+const { sorted, groups, items, roleCount, orgNameOf, skillStemsOf, skillNameByStem } = await getExperienceList();
+
+const thumbSources = await getExperienceThumbSources(sorted);
+const itemsWithThumbs = await Promise.all(
+  items.map(async (item) => {
+    const source = thumbSources.get(item.id);
+    if (!source) return item;
+    const thumb = await getImage({ src: source.src, width: 128, format: "webp", quality: 70 });
+    return { ...item, thumbSrc: thumb.src, thumbAlt: source.alt };
+  }),
+);
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const dateValues = items.flatMap((i) => [i.date, i.dateEnd].filter((d): d is string => !!d)).sort();
+const dateMin = dateValues[0] ?? null;
+const dateMax = dateValues[dateValues.length - 1] ?? null;
+const graphNodes = toGraph([
+  collectionPageNode({
+    path: "/experience",
+    siteUrl,
+    name: "Experience",
+    description: `${roleCount} roles across freelance, startups, and campus.`,
+    items: sorted.map((e) => {
+      const org = orgNameOf(e);
+      return {
+        name: `${e.data.roleName} at ${org.name}`,
+        url: abs(`/experience/${toAtsSlug(e.id)}`),
+      };
+    }),
+  }),
+  personRefNode(siteUrl),
+  breadcrumbNode("/experience", [
+    { name: "Home", item: "/" },
+    { name: "Experience", item: "/experience" },
+  ]),
+]);
+---
+
+<Layout title="Experience" description={`${roleCount} roles across freelance, startups, and campus.`} graphNodes={graphNodes}>
+  <Section variant="sheet" labelledby="exp-heading">
+    <h1 id="exp-heading" class="display text-[clamp(3rem,1.6rem+7vw,7rem)]">Experience</h1>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">
+      {roleCount} roles across freelance, startups, and campus. Filter by skill or organization.
+    </p>
+  </Section>
+
+  <section id="roles" class="page-margin mt-10 scroll-mt-24 md:mt-14" aria-labelledby="roles-heading" data-motion>
+    <h2 id="roles-heading" class="sr-only">Work experience</h2>
+    <div class="mt-4">
+      <Filter groups={groups} items={itemsWithThumbs} pageSize={EXPERIENCE_PAGE_SIZE} label="Filter experience" dateLabel="Role dates" dateMin={dateMin} dateMax={dateMax} view="results" client:visible />
+    </div>
+    <noscript>
+      <p class="mt-10 text-lg text-muted-foreground">
+        Filtering needs JavaScript. Showing all {roleCount} roles.
+      </p>
+      <ol class="mt-6 grid min-w-0 max-w-full grid-cols-[repeat(1,minmax(0,1fr))] gap-4 [overflow-wrap:anywhere] lg:grid-cols-[repeat(2,minmax(0,1fr))]">
+        {sorted.map((e) => {
+          const org = orgNameOf(e);
+          const stems = skillStemsOf(e).slice(0, 3);
+          const source = thumbSources.get(e.id);
+          return (
+            <li class="grid w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] gap-2 [overflow-wrap:anywhere]">
+              <p class="text-lg tabular-nums text-muted-foreground"><time datetime={e.data.startDate}>{experienceMonthYear(e.data.startDate)}</time> – {e.data.endDate ? <time datetime={e.data.endDate}>{experienceMonthYear(e.data.endDate)}</time> : "Present"}</p>
+              <div class="min-w-0 max-w-full">
+                <div class="flex min-w-0 max-w-full flex-wrap items-start gap-4 [overflow-wrap:anywhere]">
+                  {source ? (
+                    <Image
+                      src={source.src}
+                      width={128}
+                      format="webp"
+                      quality={70}
+                      alt={source.alt}
+                      loading="lazy"
+                      decoding="async"
+                      class="size-16 flex-none object-cover"
+                    />
+                  ) : (
+                    <ThumbPlaceholder name={e.data.roleName} />
+                  )}
+                  <div class="min-w-0 max-w-full flex-1">
+                <h3 class="text-2xl font-medium">
+                  <a class="hover:text-primary hover:underline" href={`/experience/${toAtsSlug(e.id)}`}>{e.data.roleName}</a>
+                </h3>
+                <p class="text-lg"><a class="text-primary underline underline-offset-4" href={`/organizations/${org.stem}`}>{org.name}</a>{employmentTypeLabel(e.data.employmentType) ? ` · ${employmentTypeLabel(e.data.employmentType)}` : ""}{jobLocationName(e.data.jobLocation) ? ` · ${jobLocationName(e.data.jobLocation)}` : ""}</p>
+                {stems.length > 0 && (
+                  <p class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-base">
+                    {stems.map((s) => (
+                      <a class="text-primary underline underline-offset-4" href={`/skills/${toAtsSlug(s)}`}>{skillNameByStem.get(s) ?? s}</a>
+                    ))}
+                  </p>
+                )}
+                  </div>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </noscript>
+  </section>
+
+  <div slot="secondary">
+    <Filter groups={groups} pageSize={EXPERIENCE_PAGE_SIZE} label="Filter experience" dateLabel="Role dates" dateMin={dateMin} dateMax={dateMax} view="controls" client:only="svelte" />
+    <noscript>
+      <p class="text-lg font-medium">Filters</p>
+      <p class="mt-2 text-base text-muted-foreground">
+        Filtering needs JavaScript. Browse by connection below.
+      </p>
+      {groups.map((g) => (
+        <div class="mt-6">
+          <p class="text-base font-medium">{g.label}</p>
+          <ul class="mt-2 flex flex-col gap-2">
+            {g.options.map((o) => (
+              <li>
+                <a class="text-primary underline underline-offset-4" href={`${EXPERIENCE_PATH}?${g.key}=${o.id}`}>{o.label}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </noscript>
+  </div>
+</Layout>

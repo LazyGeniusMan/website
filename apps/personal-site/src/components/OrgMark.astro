@@ -1,0 +1,38 @@
+---
+import * as Avatar from "$lib/components/ui/avatar/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import { monogramOf } from "../lib/monogram";
+
+interface Props {
+  name: string;
+  note?: string;
+}
+
+const { name, note } = Astro.props;
+const { initials, bg, fg } = monogramOf(name);
+---
+
+<Card.Root class="rounded-none mt-8 max-w-52" data-motion aria-label={`${name} mark`}>
+  <Card.Content class="flex min-w-0 flex-col items-center pt-6">
+    <!-- ~keep: static avatar-fallback span inside shadcn Avatar.Root. A Svelte
+      Avatar.Fallback nested from .astro renders as a separate Svelte root, so
+      bits-ui Root context never reaches it and SSR prerender throws
+      `Context Avatar.Root not found`. Zero JS by design. -->
+    <Avatar.Root
+      class="flex size-24 shrink-0 items-center justify-center rounded-none after:rounded-none select-none"
+      style={`background-color: ${bg}; color: ${fg};`}
+      role="img"
+      aria-label={`${name} monogram`}
+    >
+      <span
+        data-slot="avatar-fallback"
+        aria-hidden="true"
+        style="font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: -0.035em;"
+      >{initials}</span>
+    </Avatar.Root>
+  </Card.Content>
+  <Card.Header class="items-center text-center">
+    <Card.Title class="text-lg">{name}</Card.Title>
+    {note && <Card.Description>{note}</Card.Description>}
+  </Card.Header>
+</Card.Root>

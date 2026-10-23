@@ -1,0 +1,79 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { Button, Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "ui";
+import Icon from "../components/Icon.svelte";
+import Compass from "@lucide/svelte/icons/compass";
+import type { WebPage } from "schema-dts";
+import { WEBSITE_ID, resolveSiteUrl, webpageId, toGraph } from "../lib/jsonld";
+
+const siteUrl = resolveSiteUrl(Astro.site);
+
+
+const graphNodes = toGraph([
+  {
+    "@type": "WebPage",
+    "@id": webpageId("/404"),
+    url: `${siteUrl}/404`,
+
+    name: "No such page",
+    isPartOf: { "@id": WEBSITE_ID },
+  } satisfies WebPage,
+]);
+
+const destinations = [
+  { href: "/", label: "Home" },
+  { href: "/projects", label: "Projects" },
+  { href: "/blog", label: "Blog" },
+  { href: "/contact", label: "Contact" },
+];
+---
+
+<Layout
+  title="Not found"
+  description="This page does not exist."
+  graphNodes={graphNodes}
+  breadcrumb={[{ name: "Home", item: "/" }, { name: "No such page" }]}
+>
+  <div slot="secondary">
+    <nav aria-label="Where to next">
+      <p class="text-lg font-medium">Where to next</p>
+      <ul class="mt-2 flex flex-col gap-2 text-lg">
+        {destinations.map((d) => (
+          <li>
+            <a class="inline-flex min-h-11 items-center underline-offset-4 hover:underline" href={d.href}>
+              {d.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+  <section class="page-margin pt-10 md:pt-16" aria-labelledby="missing-heading" data-motion>
+    <h1 id="missing-heading" class="display text-[clamp(3rem,1.6rem+7vw,7rem)]">No such page</h1>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">
+      The page moved or never existed. The projects, notes, and contact pages are one click away.
+    </p>
+    <p class="mt-4 text-base tabular-nums opacity-70">
+      Error 404 · <a class="underline underline-offset-4" href="/">yansyah.my.id</a>
+    </p>
+    <Empty class="mt-10 max-w-2xl" data-motion>
+      <EmptyMedia>
+        <span class="text-4xl"><Icon of={Compass} data-icon="inline" aria-hidden="true" /></span>
+      </EmptyMedia>
+      <EmptyHeader>
+        <EmptyTitle>Pick a section</EmptyTitle>
+        <EmptyDescription>
+          Everything on this site is one or two clicks from here.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <div class="flex flex-wrap justify-center gap-3">
+          <Button href="/" variant="outline" class="min-h-11 rounded-none">Home</Button>
+          <Button href="/projects" variant="outline" class="min-h-11 rounded-none">Projects</Button>
+          <Button href="/blog" variant="outline" class="min-h-11 rounded-none">Blog</Button>
+          <Button href="/contact" class="min-h-11 rounded-none">Contact</Button>
+        </div>
+      </EmptyContent>
+    </Empty>
+  </section>
+</Layout>

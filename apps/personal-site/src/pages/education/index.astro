@@ -1,0 +1,182 @@
+---
+import { getCollection } from "astro:content";
+import { Image, getImage } from "astro:assets";
+import Layout from "../../layouts/Layout.astro";
+import Section from "../../components/Section.astro";
+import ThumbPlaceholder from "../../components/ThumbPlaceholder.astro";
+import { abs, breadcrumbNode, collectionPageNode, credentialNode, organizationNode, resolveSiteUrl, toGraph } from "../../lib/jsonld";
+import Filter from "../../components/islands/Filter.svelte";
+import { EDUCATION_PAGE_SIZE, EDUCATION_PATH, eduIdOf, eduRangeOf, getEducationList, getEducationThumbSources } from "../../lib/lists/education";
+
+const { eduAll, groups, items } = await getEducationList();
+const orgsAll = await getCollection("organizations");
+const orgByStem = new Map(orgsAll.map((o) => [(o.id.split("/").pop() ?? o.id), o]));
+const stemOf = (ref: unknown): string => {
+  const raw = typeof ref === "string" ? ref : (ref as { id: string }).id;
+  return raw.split("/").pop() ?? raw;
+};
+
+const thumbSources = await getEducationThumbSources(eduAll);
+const itemsWithThumbs = await Promise.all(
+  items.map(async (item) => {
+    const source = thumbSources.get(item.id);
+    if (!source) return item;
+    const thumb = await getImage({ src: source.src, width: 128, format: "webp", quality: 70 });
+    return { ...item, thumbSrc: thumb.src, thumbAlt: source.alt };
+  }),
+);
+const dateValues = items.flatMap((i) => [i.date, i.dateEnd].filter((d): d is string => !!d)).sort();
+const dateMin = dateValues[0] ?? null;
+const dateMax = dateValues[dateValues.length - 1] ?? null;
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const graphNodes = toGraph([
+  collectionPageNode({
+    path: "/education",
+    siteUrl,
+    name: "Education",
+    description: "Formal education: degrees with recognized institutions.",
+    items: eduAll.map((e) => ({
+      name: e.data.name,
+      url: abs(`/education/${eduIdOf(e)}`),
+    })),
+  }),
+  ...eduAll.map((e) =>
+    credentialNode({
+      slug: eduIdOf(e),
+      siteUrl,
+      pathPrefix: "education",
+      name: e.data.name,
+      ...(e.data.description ? { description: e.data.description } : {}),
+      credentialCategory: e.data.credentialCategory,
+      ...(e.data.educationalLevel ? { educationalLevel: e.data.educationalLevel } : {}),
+      ...(e.data.url ? { url: e.data.url } : {}),
+      recognizedByStem: stemOf(e.data.recognizedBy),
+      ...(e.data.department ? { departmentStem: stemOf(e.data.department) } : {}),
+      ...(((e.data.about ?? []) as unknown[]).length
+        ? {
+            aboutStems: ((e.data.about ?? []) as unknown[]).map((r) => {
+              const raw = typeof r === "string" ? r : (r as { id: string }).id;
+              return raw.split("/").pop() ?? raw;
+            }),
+          }
+        : {}),
+      ...(e.data.startDate ? { startDate: e.data.startDate } : {}),
+      ...(e.data.endDate ? { endDate: e.data.endDate } : {}),
+    }),
+  ),
+  ...[...new Map(
+    eduAll.flatMap((e) => {
+      const stems = [stemOf(e.data.recognizedBy), ...(e.data.department ? [stemOf(e.data.department)] : [])];
+      return stems.map((stem) => {
+        const org = orgByStem.get(stem);
+        if (!org) throw new Error(`education index: dangling org ref ${stem}`);
+        return [stem, org] as const;
+      });
+    }),
+  ).values()].map((org) =>
+    organizationNode({
+      slug: org.id.split("/").pop() ?? org.id,
+      siteUrl,
+      type: org.data.type,
+      name: org.data.name,
+      ...(org.data.url ? { url: org.data.url } : {}),
+      ...(org.data.logo ? { logo: org.data.logo } : {}),
+    }),
+  ),
+  breadcrumbNode("/education", [
+    { name: "Home", item: "/" },
+    { name: "Education", item: "/education" },
+  ]),
+]);
+---
+
+<Layout title="Education" description="Formal education: degrees with recognized institutions." graphNodes={graphNodes}>
+  <Section variant="sheet" labelledby="edu-heading">
+    <h1 id="edu-heading" class="display text-[clamp(3rem,1.6rem+7vw,7rem)]">Education</h1>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">
+      Formal education: degrees with recognized institutions.
+    </p>
+  </Section>
+
+  <section id="education" class="page-margin mt-10 scroll-mt-24 md:mt-14" aria-labelledby="education-heading" data-motion>
+    <h2 id="education-heading" class="sr-only">Education records</h2>
+    <div class="mt-4">
+      <Filter groups={groups} items={itemsWithThumbs} pageSize={EDUCATION_PAGE_SIZE} label="Filter education" dateLabel="Study dates" dateMin={dateMin} dateMax={dateMax} view="results" client:visible />
+    </div>
+    <noscript>
+      <p class="mt-10 text-lg text-muted-foreground">
+        Filtering needs JavaScript. Showing all {eduAll.length} records.
+      </p>
+      <ol class="mt-6 grid min-w-0 max-w-full grid-cols-[repeat(1,minmax(0,1fr))] gap-4 [overflow-wrap:anywhere] lg:grid-cols-[repeat(2,minmax(0,1fr))]">
+        {eduAll.map((e) => {
+          const org = orgByStem.get(stemOf(e.data.recognizedBy));
+          const dept = e.data.department ? orgByStem.get(stemOf(e.data.department)) : undefined;
+          const range = eduRangeOf(e);
+          const detailSlug = eduIdOf(e);
+          const source = thumbSources.get(detailSlug);
+          return (
+            <li class="w-full min-w-0 max-w-full" id={detailSlug}>
+              <div class="flex min-w-0 max-w-full flex-wrap items-start gap-4 [overflow-wrap:anywhere]">
+                {source ? (
+                  <Image
+                    src={source.src}
+                    width={128}
+                    format="webp"
+                    quality={70}
+                    alt={source.alt}
+                    loading="lazy"
+                    decoding="async"
+                    class="size-16 flex-none object-cover"
+                  />
+                ) : (
+                  <ThumbPlaceholder name={e.data.name} />
+                )}
+                <div class="min-w-0 max-w-full flex-1">
+              <h3 class="text-2xl font-medium">
+                <a class="hover:text-primary hover:underline underline-offset-4" href={`/education/${detailSlug}`}>
+                  {e.data.name}
+                </a>
+              </h3>
+              <p class="mt-2 max-w-xl text-lg">
+                {e.data.educationalLevel && <>{e.data.educationalLevel} · </>}
+                {org && (
+                  <a class="text-primary underline underline-offset-4" href={`/organizations/${stemOf(e.data.recognizedBy)}`}>{org.data.name}</a>
+                )}
+                {dept && (
+                  <> · <a class="text-primary underline underline-offset-4" href={`/organizations/${stemOf(e.data.department)}`}>{dept.data.name}</a></>
+                )}
+                {range && <> · {range}</>}
+              </p>
+              {e.data.description && <p class="mt-2 max-w-xl">{e.data.description}</p>}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </noscript>
+  </section>
+
+  <div slot="secondary">
+    <Filter groups={groups} pageSize={EDUCATION_PAGE_SIZE} label="Filter education" dateLabel="Study dates" dateMin={dateMin} dateMax={dateMax} view="controls" client:only="svelte" />
+    <noscript>
+      <p class="text-lg font-medium">Filters</p>
+      <p class="mt-2 text-base text-muted-foreground">
+        Filtering needs JavaScript. Browse by connection below.
+      </p>
+      {groups.map((g) => (
+        <div class="mt-6">
+          <p class="text-base font-medium">{g.label}</p>
+          <ul class="mt-2 flex flex-col gap-2">
+            {g.options.map((o) => (
+              <li>
+                <a class="text-primary underline underline-offset-4" href={`${EDUCATION_PATH}?${g.key}=${o.id}`}>{o.label}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </noscript>
+  </div>
+</Layout>

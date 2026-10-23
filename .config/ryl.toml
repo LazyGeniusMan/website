@@ -1,6 +1,7 @@
 exclude = [
   "registry.yml",
   "registry.yaml",
+  "pnpm-lock.yaml",
   ".config/turutan/state.yml",
   "templates/**/manifest/**",
   "templates/**/releases/**",
@@ -9,11 +10,7 @@ exclude = [
 ]
 
 [files]
-yaml = [
-  "*.yaml",
-  "*.yml",
-  ".yamllint",
-]
+yaml = ["*.yaml", "*.yml", ".yamllint"]
 
 [lint.rules]
 anchors = "enable"

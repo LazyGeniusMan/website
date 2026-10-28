@@ -1,0 +1,38 @@
+{
+  "roleName": "Business Process Analyst",
+  "description": "Identified, analyzed, redesigned, and implemented tax collection business processes.",
+  "startDate": "2022-03",
+  "endDate": "2022-06",
+  "worksFor": "makers-institute",
+  "skills": [
+    "business-process-management",
+    "business-process-improvement",
+    "information-systems",
+    "bpmn",
+    "dmn",
+    "sql"
+  ],
+  "jobLocation": "Bandung, Indonesia",
+  "employmentType": "FULL_TIME",
+  "relatedProjects": ["thesis"],
+  "occupation": {
+    "name": "Business Process Analyst",
+    "description": "Tax collection process automation with BPMN and DMN, wireframe, and compliance verification.",
+    "responsibilities": [
+      "Identified, analyzed, redesigned, and implemented tax collection business processes.",
+      "Designed and developed an executable business process model utilizing Business Process Model and Notation (BPMN) and Decision Model and Notation (DMN) methodologies.",
+      "Created a wireframe for the tax collection application.",
+      "Determined the appropriate accounting treatment for the tax collection process, ensuring compliance with relevant tax laws and regulations.",
+      "Verified the alignment of the tax collection application with business requirements and tax laws through the preparation and execution of comprehensive test cases."
+    ],
+    "skillsNote": "BPMN, DMN, accounting treatment, wireframes, test cases.",
+    "skills": [
+      "business-process-management",
+      "business-process-improvement",
+      "information-systems",
+      "bpmn",
+      "dmn",
+      "sql"
+    ]
+  }
+}

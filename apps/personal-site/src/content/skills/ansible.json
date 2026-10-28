@@ -1,0 +1,8 @@
+{
+  "name": "Ansible",
+  "description": "Automation engine that automates provisioning, configuration management, application deployment, orchestration, and many other IT processes",
+  "proficiencyLevel": "advanced",
+  "category": "Technical",
+  "url": "https://www.ansible.com/",
+  "sameAs": ["https://en.wikipedia.org/wiki/Ansible_(software)"]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Kubernetes",
+  "description": "Kubernetes",
+  "proficiencyLevel": "intermediate",
+  "category": "Technical",
+  "url": "https://kubernetes.io/",
+  "sameAs": ["https://en.wikipedia.org/wiki/Kubernetes"]
+}

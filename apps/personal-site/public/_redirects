@@ -1,0 +1,8 @@
+/credentials /certifications 301
+/credentials/* /certifications/:splat 301
+/resume /cv 301
+/go/github https://github.com/LazyGeniusMan 302
+/go/linkedin https://www.linkedin.com/in/andriyansyah-nurrachman/ 302
+/go/instagram https://instagram.com/__yansyah 302
+/go/thesis https://github.com/LazyGeniusMan/thesis 302
+/go/bachelor-thesis https://github.com/LazyGeniusMan/thesis 302

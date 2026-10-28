@@ -1,0 +1,8 @@
+{
+  "name": "SQL",
+  "alternateName": "Structured Query Language",
+  "description": "Relational database query.",
+  "proficiencyLevel": "advanced",
+  "category": "Technical",
+  "sameAs": ["https://en.wikipedia.org/wiki/SQL"]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "mise-npm-install",
+  "private": true,
+  "dependencies": {
+    "@puppeteer/browsers": "3.2.5"
+  }
+}

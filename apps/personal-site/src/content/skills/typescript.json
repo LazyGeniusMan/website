@@ -1,0 +1,8 @@
+{
+  "name": "Typescript",
+  "description": "Typescript programming language",
+  "proficiencyLevel": "advanced",
+  "category": "Technical",
+  "url": "https://www.typescriptlang.org/",
+  "sameAs": ["https://en.wikipedia.org/wiki/TypeScript"]
+}

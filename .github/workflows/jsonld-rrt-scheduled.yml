@@ -1,0 +1,121 @@
+---
+# yamllint disable rule:line-length
+name: jsonld-rrt-scheduled
+"on":
+  schedule:
+    # Weekly Sunday 03:00 UTC: advisory only, cheap enough to stay weekly. ~keep
+    - cron: 0 3 * * 0
+  workflow_dispatch:
+concurrency:
+  group: jsonld-rrt-scheduled-${{ github.ref }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  rrt-advisory:
+    # Post-deploy RRT loop (M4): rebuild + run the offline verify suite ~keep
+    # advisory. NEVER gates deploy: every verify step is continue-on-error, ~keep
+    # triage always runs, and this workflow has no `needs` relationship ~keep
+    # with personal-site.yml validate/build/test/deploy. There is no public ~keep
+    # RRT API, so Rich Results Test + Search Console URL Inspection stay ~keep
+    # manual per docs/jsonld-rrt-postdeploy.md. ~keep
+    name: RRT advisory (never gates deploy)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write  # file/comment the RRT advisory backlog issue (triage step only) ~keep
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1 ~keep
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install tools
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8  # v5.1.2 ~keep
+      - name: Install
+        run: mise install
+      - name: Node 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444  # v5 ~keep
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: vp install --frozen-lockfile
+      # Generates git-ignored .astro/ content types on a fresh runner. ~keep
+      - name: Sync (astro content types)
+        working-directory: apps/personal-site
+        run: vp exec astro sync
+      - name: Build
+        id: build
+        run: vp run build
+      # Advisory verify suite: each step continue-on-error so one failure ~keep
+      # never masks the rest; triage collects outcomes below. ~keep
+      - name: Builders L2/L3 (vitest)
+        id: test
+        run: vp run personal-site#test
+        continue-on-error: true
+      - name: Parity (visible vs markup)
+        id: parity
+        run: vp run personal-site#parity
+        continue-on-error: true
+      - name: Lint (ATS headings)
+        id: ats
+        run: vp run personal-site#verify-ats
+        continue-on-error: true
+      - name: Lint (JSON-LD @ids)
+        id: ids
+        run: vp run personal-site#verify-jsonld-ids
+        continue-on-error: true
+      - name: Lint (JSON-LD vocab)
+        id: vocab
+        run: vp run personal-site#verify-jsonld-vocab
+        continue-on-error: true
+      - name: Dist verify (budgets, links, freshness)
+        id: dist
+        run: vp run personal-site#verify-dist
+        continue-on-error: true
+      # Backlog triage: dedupes onto one open marker issue, comments when ~keep
+      # green again, creates otherwise. Step outcomes are runner-controlled ~keep
+      # (success/failure/skipped), never attacker input. ~keep
+      - name: Triage findings into backlog issue
+        id: triage
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OUT_BUILD: ${{ steps.build.outcome }}
+          OUT_TEST: ${{ steps.test.outcome }}
+          OUT_PARITY: ${{ steps.parity.outcome }}
+          OUT_ATS: ${{ steps.ats.outcome }}
+          OUT_IDS: ${{ steps.ids.outcome }}
+          OUT_VOCAB: ${{ steps.vocab.outcome }}
+          OUT_DIST: ${{ steps.dist.outcome }}
+        run: |
+          FAILURES=""
+          for pair in "build:${OUT_BUILD}" "L2/L3:${OUT_TEST}" "parity:${OUT_PARITY}" "ats:${OUT_ATS}" "jsonld-ids:${OUT_IDS}" "jsonld-vocab:${OUT_VOCAB}" "dist:${OUT_DIST}"; do
+            name="${pair%%:*}"
+            outcome="${pair##*:}"
+            if [ "${outcome}" != "success" ]; then
+              FAILURES="${FAILURES} ${name}=${outcome}"
+            fi
+          done
+          MARKER="JSON-LD RRT advisory backlog"
+          EXISTING="$(gh issue list --state open --search "${MARKER} in:title" --json number --jq '.[0].number // empty')"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          if [ -z "${FAILURES}" ]; then
+            echo "rrt-advisory: all checks green."
+            if [ -n "${EXISTING}" ]; then
+              gh issue comment "${EXISTING}" --body "Scheduled RRT advisory run is green again: ${RUN_URL}. Manual Rich Results Test + Search Console URL Inspection remain manual steps (see docs/jsonld-rrt-postdeploy.md)."
+            fi
+            exit 0
+          fi
+          BODY="Scheduled RRT advisory findings (${RUN_URL}, **never gates deploy**). Failing checks:${FAILURES}. Triage into backlog; manual Rich Results Test + Search Console URL Inspection per docs/jsonld-rrt-postdeploy.md."
+          if [ -n "${EXISTING}" ]; then
+            gh issue comment "${EXISTING}" --body "${BODY}"
+          else
+            CREATED="$(gh issue create --title "${MARKER}" --body "${BODY}")"
+            gh issue edit "${CREATED}" --add-label "rrt-advisory" || true
+          fi

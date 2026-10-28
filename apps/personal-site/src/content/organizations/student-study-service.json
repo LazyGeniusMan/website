@@ -1,0 +1,9 @@
+{
+  "name": "Student Study Service",
+  "alternateName": "SSS Unpad",
+  "description": "Student program at Universitas Padjadjaran.",
+  "type": "Organization",
+  "url": "https://www.unpad.ac.id",
+  "parentOrganization": "unpad",
+  "sameAs": []
+}

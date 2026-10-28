@@ -1,0 +1,380 @@
+---
+import { Image, getImage } from "astro:assets";
+import { getCollection, getEntry, getEntries } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
+import TocNav from "$lib/components/islands/TocNav.svelte";
+import DetailRelations from "../../components/DetailRelations.astro";
+import OrgMark from "../../components/OrgMark.astro";
+import CertFigures from "../../components/CertFigures.astro";
+import FactTable from "../../components/FactTable.astro";
+import Section from "../../components/Section.astro";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import { Button } from "$lib/components/ui/button/index.js";
+import { Separator } from "$lib/components/ui/separator/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
+import { breadcrumbNode, credentialNode, heroImageNode, imageIdOf, organizationNode, personRefNode, resolveSiteUrl, toGraph, webpageDetailNode } from "../../lib/jsonld";
+import { credentialDisplay, toAtsSlug } from "../../lib/collections";
+import { ORG_LOGO_BY_STEM } from "../../lib/orgLogos";
+
+export async function getStaticPaths() {
+  const all = await getCollection("credentials");
+  const stemOf = (id: string): string => id.split("/").pop() ?? id;
+  return all.map((c) => ({
+    params: { slug: toAtsSlug(c.data.publicSlug ?? stemOf(c.id)) },
+  }));
+}
+
+const { slug } = Astro.params;
+const credsAll = await getCollection("credentials");
+const stemOf = (id: string): string => id.split("/").pop() ?? id;
+const entry = credsAll.find((c) => toAtsSlug(c.data.publicSlug ?? stemOf(c.id)) === slug);
+if (!entry) return Astro.redirect("/404");
+
+const rec = entry.data.recognizedBy as unknown as { id: string } | string | undefined;
+let issuer: { data: { name: string; type?: "Organization" | "CollegeOrUniversity" | "EducationalOrganization"; url?: string; logo?: string } } | null = null;
+if (rec) {
+  try {
+
+
+
+    issuer = (await getEntry(rec as never)) as unknown as {
+      data: {
+        name: string;
+        type?: "Organization" | "CollegeOrUniversity" | "EducationalOrganization";
+        url?: string;
+        logo?: string;
+      };
+    } | null;
+  } catch (e) {
+    throw new Error(`certifications/${entry.id}: unresolvable recognizedBy ref`, { cause: e });
+  }
+  if (!issuer) throw new Error(`certifications/${entry.id}: dangling recognizedBy ref`);
+}
+const issuerStem = rec
+  ? ((typeof rec === "string" ? rec : rec.id).split("/").pop() ?? "")
+  : "";
+const aboutStems = ((entry.data.about ?? []) as unknown[]).map((r) => {
+  const raw = typeof r === "string" ? r : (r as { id: string }).id;
+  return raw.split("/").pop() ?? raw;
+});
+
+const aboutRefs = ((entry.data.about ?? []) as never[]);
+let aboutSkills: { id: string; data: { name: string } }[] = [];
+if (aboutRefs.length) {
+  try {
+    aboutSkills = (await getEntries(aboutRefs)) as { id: string; data: { name: string } }[];
+  } catch (e) {
+    throw new Error(`certifications/${entry.id}: unresolvable about ref`, { cause: e });
+  }
+  if (aboutSkills.length !== aboutRefs.length || aboutSkills.some((s) => !s)) {
+    throw new Error(`certifications/${entry.id}: dangling about ref`);
+  }
+}
+
+const sorted = [...credsAll].sort((a, b) => {
+  const at = a.data.dateCreated ? +(a.data.dateCreated as Date) : 0;
+  const bt = b.data.dateCreated ? +(b.data.dateCreated as Date) : 0;
+  return bt - at || a.data.name.localeCompare(b.data.name);
+});
+const entryIdx = sorted.findIndex((c) => c.id === entry.id);
+const newerEntry = entryIdx > 0 ? sorted[entryIdx - 1] : null;
+const olderEntry = entryIdx >= 0 && entryIdx < sorted.length - 1 ? sorted[entryIdx + 1] : null;
+const slugOf = (c: (typeof sorted)[number]): string =>
+  toAtsSlug(c.data.publicSlug ?? stemOf(c.id));
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const canonical = `/certifications/${slug}`;
+
+const bundledIssuerLogo = issuerStem ? ((ORG_LOGO_BY_STEM as Record<string, unknown>)[issuerStem] ?? null) : null;
+const issuerEntryLogo = (issuer?.data as unknown as { logo?: unknown } | null)?.logo ?? null;
+const heroSrc = ((entry.data.heroImage ?? entry.data.logo ?? bundledIssuerLogo ?? issuerEntryLogo ?? null) as never | null);
+const heroIsLogo = !entry.data.heroImage && !!(entry.data.logo ?? bundledIssuerLogo ?? issuerEntryLogo);
+const heroVariant = heroSrc
+  ? await getImage({ src: heroSrc, width: 640, quality: 55, format: "webp" })
+  : null;
+const imageNode = heroImageNode({
+  heroImage: heroVariant,
+  heroCredit: entry.data.heroCredit,
+  heroSource: entry.data.heroSource,
+  pagePath: canonical,
+});
+const imageId = imageIdOf(imageNode);
+
+const gallerySrcs = (((entry.data as { images?: unknown }).images ?? []) as never[]).filter(Boolean);
+const galleryVariants = await Promise.all(
+  gallerySrcs.map((src) => getImage({ src, width: 640, quality: 55, format: "webp" })),
+);
+const galleryNodes = galleryVariants
+  .map((variant) =>
+    heroImageNode({
+      heroImage: variant,
+      heroCredit: entry.data.heroCredit,
+      heroSource: entry.data.heroSource,
+      pagePath: canonical,
+    }),
+  )
+  .filter((n) => !!n);
+const fmtMonthYear = (d: Date): string =>
+  d.toLocaleString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+const graphNodes = toGraph([
+  credentialNode({
+    slug: slug as string,
+    siteUrl,
+    name: entry.data.name,
+    ...(entry.data.description ? { description: entry.data.description } : {}),
+    ...(entry.data.credentialCategory ? { credentialCategory: entry.data.credentialCategory } : {}),
+    ...(entry.data.educationalLevel ? { educationalLevel: entry.data.educationalLevel } : {}),
+    ...(entry.data.credentialId ? { identifier: entry.data.credentialId } : {}),
+    ...(entry.data.dateCreated ? { dateCreated: entry.data.dateCreated as Date } : {}),
+    ...(entry.data.validUntil ? { expires: entry.data.validUntil as Date } : {}),
+    ...(entry.data.url ? { url: entry.data.url } : {}),
+    ...(issuerStem ? { recognizedByStem: issuerStem } : {}),
+    ...(aboutStems.length ? { aboutStems } : {}),
+  }),
+
+  ...(issuer
+    ? [
+        organizationNode({
+          slug: issuerStem,
+          siteUrl,
+          type: issuer.data.type ?? "Organization",
+          name: issuer.data.name,
+          ...(issuer.data.url ? { url: issuer.data.url } : {}),
+          ...(issuer.data.logo ? { logo: issuer.data.logo } : {}),
+        }),
+      ]
+    : []),
+  webpageDetailNode(
+    canonical,
+    siteUrl,
+    entry.data.name,
+    imageId ? { primaryImageOfPage: { "@id": imageId } } : undefined,
+  ),
+  personRefNode(siteUrl),
+  breadcrumbNode(canonical, [
+    { name: "Home", item: "/" },
+    { name: "Certifications", item: "/certifications" },
+    { name: entry.data.name, item: canonical },
+  ]),
+  ...(imageNode ? [imageNode] : []),
+  ...galleryNodes,
+]);
+---
+
+<Layout title={entry.data.name} description={entry.data.description ?? entry.data.name} graphNodes={graphNodes} breadcrumb={[{ name: "Home", item: "/" }, { name: "Certifications", item: "/certifications" }, { name: entry.data.name }]}>
+  <div slot="secondary">
+    <TocNav client:visible items={[{ id: "hero", label: "Certification" }, ...(galleryVariants.length > 0 ? [{ id: "gallery", label: "Gallery" }] : []), { id: "content", label: "Content" }, ...((aboutSkills.length > 0 || issuer) ? [{ id: "relations", label: "Relations" }] : []), { id: "seals", label: "Seals" }, { id: "metadata", label: "Metadata" }]} />
+  </div>
+  <Section variant="sheet" labelledby="cert-heading">
+    <h1 id="cert-heading" class="title-record mt-3 max-w-4xl text-balance">{entry.data.name}</h1>
+    {entry.data.description && (
+      <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">{entry.data.description}</p>
+    )}
+    <p class="mt-4 text-lg text-muted-foreground">
+      {issuer ? <><a class="text-primary underline underline-offset-4" href={`/organizations/${toAtsSlug(issuerStem)}`}>{issuer.data.name}</a> · </> : null}
+      {entry.data.dateCreated && <><time datetime={(entry.data.dateCreated as Date).toISOString()}>{fmtMonthYear(entry.data.dateCreated as Date)}</time></>}
+      {entry.data.validUntil && <>{entry.data.dateCreated ? " – " : ""}<time datetime={(entry.data.validUntil as Date).toISOString()}>{fmtMonthYear(entry.data.validUntil as Date)}</time></>}
+      {entry.data.credentialId && <> · ID {entry.data.credentialId}</>}
+      {entry.data.url && <> · <a class="text-primary underline underline-offset-4" href={entry.data.url}>Verify</a></>}
+    </p>
+    <div class="mt-5 flex flex-wrap gap-2">
+      <Badge class="rounded-none text-sm" variant="secondary">{credentialDisplay(entry.data.credentialCategory)}</Badge>
+      {entry.data.educationalLevel && <Badge class="rounded-none text-sm" variant="outline">{entry.data.educationalLevel}</Badge>}
+      {entry.data.url ? <Badge class="rounded-none text-sm" variant="outline">Verifiable</Badge> : <Badge class="rounded-none text-sm" variant="outline">Reference only</Badge>}
+    </div>
+    {heroVariant && heroSrc ? (
+      <figure id="hero" class="mt-10 max-w-full min-w-0 scroll-mt-24" data-motion>
+        <Image
+          src={heroSrc}
+          width={640}
+          format="webp"
+          quality={55}
+          alt={heroIsLogo ? `${issuer?.data.name ?? entry.data.name} logo` : `${entry.data.name} thumbnail`}
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+          class={heroIsLogo ? "aspect-[21/9] w-full rounded-none object-contain object-center bg-card p-6" : "aspect-[21/9] w-full rounded-none object-cover object-center"}
+        />
+        {(entry.data.heroCredit || entry.data.heroSource) && <figcaption class="credit-line mt-2">{entry.data.heroCredit}{entry.data.heroSource && <> <a class="underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</figcaption>}
+      </figure>
+    ) : (
+      <figure id="hero" class="mt-10 max-w-full min-w-0 scroll-mt-24" data-motion>
+        <div class="flex aspect-[21/9] w-full min-w-0 max-w-full items-center justify-center rounded-none bg-muted">
+          <OrgMark name={issuer?.data.name ?? entry.data.name} note="Credential seal" />
+        </div>
+        {(entry.data.heroCredit || entry.data.heroSource) && <figcaption class="credit-line mt-2">{entry.data.heroCredit}{entry.data.heroSource && <> <a class="underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</figcaption>}
+      </figure>
+    )}
+    {galleryVariants.length > 0 && (
+      <Card.Root id="gallery" class="rounded-none mt-10 scroll-mt-24" aria-labelledby="gallery-heading" data-motion>
+        <Card.Header>
+          <Card.Title class="text-lg"><h2 id="gallery-heading" class="text-lg font-medium">Gallery</h2></Card.Title>
+          <Card.Description>{galleryVariants.length} images.</Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <div class="grid gap-6 md:grid-cols-2">
+            {gallerySrcs.map((src, i) => (
+              <figure>
+                <Image
+                  src={src as never}
+                  width={640}
+                  format="webp"
+                  quality={55}
+                  alt={`${entry.data.name} image ${i + 1}`}
+                  loading="lazy"
+                  decoding="async"
+                  class="aspect-[21/9] w-full object-cover"
+                />
+                {(entry.data.heroCredit || entry.data.heroSource) && <figcaption class="credit-line mt-2">{entry.data.heroCredit}{entry.data.heroSource && <> <a class="underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</figcaption>}
+              </figure>
+            ))}
+          </div>
+        </Card.Content>
+      </Card.Root>
+    )}
+    <div id="content" class="mt-10 scroll-mt-24" data-motion>
+      <Card.Root class="rounded-none">
+        <Card.Header>
+          <Card.Title class="text-lg"><h2 class="text-lg font-medium">Content</h2></Card.Title>
+          <Card.Description>{issuer ? `Recognized by ${issuer.data.name}.` : "Credential."}</Card.Description>
+        </Card.Header>
+        <Card.Content class="max-w-[65ch]">
+          <p class="text-lg">{entry.data.description ?? entry.data.name}</p>
+        </Card.Content>
+      </Card.Root>
+    </div>
+    {(newerEntry || olderEntry) && (
+      <nav aria-label="More certifications" class="mt-10" data-motion>
+        <Separator class="mb-6" />
+        <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:justify-between">
+          {newerEntry ? (
+            <Button rel="prev" variant="link" href={`/certifications/${slugOf(newerEntry)}`} class="rounded-none h-auto max-w-md min-w-0 justify-start p-0 text-left text-lg whitespace-normal underline">
+              <span aria-hidden="true">← </span>{newerEntry.data.name}
+            </Button>
+          ) : <span />}
+          {olderEntry ? (
+            <Button rel="next" variant="link" href={`/certifications/${slugOf(olderEntry)}`} class="rounded-none h-auto max-w-md min-w-0 justify-start p-0 text-left text-lg whitespace-normal underline sm:text-right">
+              {olderEntry.data.name}<span aria-hidden="true"> →</span>
+            </Button>
+          ) : <span />}
+        </div>
+      </nav>
+    )}
+    {(aboutSkills.length > 0 || issuer) && (
+      <DetailRelations
+        description="Every linked metadata for this credential."
+        groups={[
+          ...(aboutSkills.length > 0 ? [{ label: "Skills", items: aboutSkills.map((s) => ({ title: s.data.name, href: `/skills/${toAtsSlug(s.id.split("/").pop() ?? s.id)}`, thumb: null, thumbName: s.data.name })) }] : []),
+          ...(issuer && issuerStem ? [{ label: "Organizations", items: [{ title: issuer.data.name, href: `/organizations/${toAtsSlug(issuerStem)}`, thumb: ((issuer.data.logo ?? null) as never | null), thumbName: issuer.data.name }] }] : []),
+        ]}
+      />
+    )}
+    <Card.Root id="seals" class="rounded-none mt-10 scroll-mt-24" aria-labelledby="seals-heading" data-motion>
+      <Card.Header>
+        <Card.Title class="text-lg"><h2 id="seals-heading" class="text-lg font-medium">Certification seals</h2></Card.Title>
+        <Card.Description>Vector seal.</Card.Description>
+      </Card.Header>
+      <Card.Content>
+        <CertFigures slugs={[entry.data.publicSlug ?? slug]} />
+      </Card.Content>
+    </Card.Root>
+    <Section variant="ledger" label="Metadata">
+    <section id="metadata" class="mt-10 scroll-mt-24" data-motion>
+      <FactTable title="Metadata" caption="Every field on this credential, with links to its relations.">
+        <Table.Row>
+          <Table.Cell class="w-36 align-top font-medium">Name</Table.Cell>
+          <Table.Cell>{entry.data.name}</Table.Cell>
+        </Table.Row>
+        {entry.data.description && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Description</Table.Cell>
+            <Table.Cell>{entry.data.description}</Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Type</Table.Cell>
+          <Table.Cell>{credentialDisplay(entry.data.credentialCategory)}</Table.Cell>
+        </Table.Row>
+        {entry.data.educationalLevel && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Level</Table.Cell>
+            <Table.Cell>{entry.data.educationalLevel}</Table.Cell>
+          </Table.Row>
+        )}
+        {entry.data.credentialId && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Credential ID</Table.Cell>
+            <Table.Cell>{entry.data.credentialId}</Table.Cell>
+          </Table.Row>
+        )}
+        {issuer && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Recognized by</Table.Cell>
+            <Table.Cell>
+              <a class="text-primary underline underline-offset-4" href={`/organizations/${toAtsSlug(issuerStem)}`}>{issuer.data.name}</a>
+              {issuer.data.url && (
+                <span> · <a class="text-primary underline underline-offset-4" href={issuer.data.url}>{new URL(issuer.data.url).hostname}</a></span>
+              )}
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {(entry.data.dateCreated || entry.data.validUntil) && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Dates</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">
+              {entry.data.dateCreated && <>Issued <time datetime={(entry.data.dateCreated as Date).toISOString()}>{fmtMonthYear(entry.data.dateCreated as Date)}</time></>}
+              {entry.data.dateCreated && entry.data.validUntil && " · "}
+              {entry.data.validUntil && <>Valid until <time datetime={(entry.data.validUntil as Date).toISOString()}>{fmtMonthYear(entry.data.validUntil as Date)}</time></>}
+            </span></Table.Cell>
+          </Table.Row>
+        )}
+        {aboutSkills.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Skills</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {aboutSkills.map((s) => (
+                  <Badge class="rounded-none text-sm" href={`/skills/${toAtsSlug(s.id.split("/").pop() ?? s.id)}`} variant="outline">{s.data.name}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {entry.data.url && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Reference</Table.Cell>
+            <Table.Cell>
+              <a class="text-primary underline underline-offset-4" href={entry.data.url}>{(() => { try { return new URL(entry.data.url as string).hostname; } catch { return entry.data.url; } })()}</a>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Seal</Table.Cell>
+          <Table.Cell><span class="text-muted-foreground">Vector seal illustration, no raster scan</span></Table.Cell>
+        </Table.Row>
+        {(heroSrc || entry.data.heroCredit || entry.data.heroSource) && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Hero</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{entry.data.heroCredit ?? "Credential logo"}</span>{entry.data.heroSource && <> <a class="text-primary underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</Table.Cell>
+          </Table.Row>
+        )}
+        {gallerySrcs.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Gallery</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{gallerySrcs.length} {gallerySrcs.length === 1 ? "image" : "images"} below the hero</span></Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Public slug</Table.Cell>
+          <Table.Cell><span class="text-muted-foreground">{entry.data.publicSlug ?? "(stem)"}</span></Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Canonical</Table.Cell>
+          <Table.Cell><span class="text-muted-foreground">/certifications/{slug}</span></Table.Cell>
+        </Table.Row>
+      </FactTable>
+    </section>
+    </Section>
+  </Section>
+</Layout>

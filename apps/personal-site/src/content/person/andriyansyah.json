@@ -1,0 +1,51 @@
+{
+  "name": "Andriyansyah Nurrachman",
+  "alternateName": "Yansyah",
+  "jobTitle": "Business Process and Enterprise System Specialist",
+  "description": "Andriyansyah Nurrachman is a Business Process and Enterprise System Specialist whose work spans across diverse industries. He designs and implements operating models, business process models, accounting treatments, and information systems.",
+  "url": "https://yansyah.my.id/",
+  "email": "website@yansyah.my.id",
+  "image": "../../assets/portrait.png",
+  "sameAs": [
+    "https://github.com/LazyGeniusMan",
+    "https://www.linkedin.com/in/andriyansyah-nurrachman/"
+  ],
+  "knowsAbout": [
+    "problem-solving",
+    "analytical-skill",
+    "critical-thinking",
+    "systematic-thinking",
+    "information-systems",
+    "business-process-management",
+    "business-process-improvement",
+    "bpmn",
+    "dmn",
+    "office-suite",
+    "sql",
+    "python",
+    "go",
+    "typescript",
+    "docker",
+    "kubernetes",
+    "ansible",
+    "terraform"
+  ],
+  "hasOccupation": [
+    "research-assistant-2020",
+    "volunteer-2021",
+    "erp-implementation-team-2021",
+    "teaching-assistant-2022",
+    "business-process-analyst-2022",
+    "teaching-assistant-2023",
+    "business-process-designer-2022",
+    "business-process-designer-2023",
+    "business-process-enterprise-system-specialist"
+  ],
+  "alumniOf": ["unpad", "feb-unpad"],
+  "hasCredential": ["teps", "rutgers-swam", "efset", "gits-internship"],
+  "knowsLanguage": ["id", "en"],
+  "address": {
+    "addressLocality": "Bandung",
+    "addressCountry": "ID"
+  }
+}

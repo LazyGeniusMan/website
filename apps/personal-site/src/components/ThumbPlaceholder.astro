@@ -1,0 +1,33 @@
+---
+import * as Avatar from "$lib/components/ui/avatar/index.js";
+import { cn } from "$lib/utils.js";
+import { initialsOf } from "../lib/monogram";
+
+interface Props {
+  name: string;
+  class?: string;
+}
+
+const { name, class: className } = Astro.props;
+const initials = initialsOf(name);
+---
+
+<!-- ~keep: ThumbPlaceholder renders shadcn Avatar.Root with a static
+  avatar-fallback span (same data-slot hook the shadcn Fallback emits).
+  Uniform Option B placeholder color (primary 16% + muted bg, foreground
+  text) instead of per-name hue. A Svelte Avatar.Fallback nested from .astro renders
+  as a separate Svelte root, so bits-ui Root context never reaches it and SSR
+  prerender throws `Context Avatar.Root not found`. Static span is SSR-safe.
+  No Avatar.Image (display:none without JS). Astro SSR static, zero JS by design.
+-->
+<Avatar.Root
+  class={cn(
+    "flex size-16 shrink-0 items-center justify-center rounded-none after:rounded-none select-none",
+    className,
+  )}
+  style="background-color: color-mix(in oklab, var(--color-primary) 16%, var(--color-muted)); color: var(--color-foreground);"
+  role="img"
+  aria-label={`${name} monogram`}
+>
+  <span data-slot="avatar-fallback" aria-hidden="true" class="text-lg font-bold">{initials}</span>
+</Avatar.Root>

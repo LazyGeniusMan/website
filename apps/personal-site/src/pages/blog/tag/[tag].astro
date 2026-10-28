@@ -1,0 +1,129 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import Section from "../../../components/Section.astro";
+import ThumbPlaceholder from "../../../components/ThumbPlaceholder.astro";
+import { Image, getImage } from "astro:assets";
+import { abs, blogIndexNode, breadcrumbNode, personRefNode, resolveSiteUrl, toGraph } from "../../../lib/jsonld";
+import Filter from "../../../components/islands/Filter.svelte";
+import { publishedPosts, allTags, readingTime, toAtsSlug } from "../../../lib/collections";
+import { BLOG_PAGE_SIZE, BLOG_PATH, blogDateBounds, blogMonthYear, getBlogTagList, getBlogThumbSources } from "../../../lib/lists/blog";
+
+export async function getStaticPaths() {
+  const posts = await publishedPosts();
+  return allTags(posts).map((tag) => ({ params: { tag: toAtsSlug(tag) } }));
+}
+
+const { tag } = Astro.params;
+const { tagged, groups, items } = await getBlogTagList(tag as string);
+const thumbSources = await getBlogThumbSources(tagged);
+const itemsWithThumbs = await Promise.all(
+  items.map(async (item) => {
+    const source = thumbSources.get(item.id);
+    if (!source) return item;
+    const thumb = await getImage({ src: source.src, width: 128, format: "webp", quality: 60 });
+    return { ...item, thumbSrc: thumb.src, thumbAlt: source.alt };
+  }),
+);
+const { dateMin, dateMax } = blogDateBounds(items);
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const graphNodes = toGraph([
+  blogIndexNode({
+    path: `/blog/tag/${tag}`,
+    siteUrl,
+    name: `Blog: ${tag}`,
+    description: `Notes on ${tag} by Andriyansyah Nurrachman.`,
+    items: tagged.map((p) => ({ name: p.data.title, url: abs(`/blog/${toAtsSlug(p.id)}`) })),
+  }),
+  personRefNode(siteUrl),
+  breadcrumbNode(`/blog/tag/${tag}`, [
+    { name: "Home", item: "/" },
+    { name: "Blog", item: "/blog" },
+    { name: `Blog: ${tag}`, item: `/blog/tag/${tag}` },
+  ]),
+]);
+---
+
+<Layout
+  title={`Blog: ${tag}`}
+  description={`Notes on ${tag} by Andriyansyah Nurrachman.`}
+  graphNodes={graphNodes}
+  breadcrumb={[{ name: "Home", item: "/" }, { name: "Blog", item: "/blog" }, { name: `Blog: ${tag}` }]}
+>
+  <Section variant="sheet" labelledby="tag-heading">
+    <h1 id="tag-heading" class="display text-[clamp(3rem,1.6rem+7vw,7rem)]">Blog: {tag}</h1>
+    <p class="mt-4 max-w-xl text-lg">
+      Notes on {tag} from real engagements. {tagged.length} posts on {tag}.
+    </p>
+  </Section>
+
+  <section id="tagged" class="page-margin mt-10 scroll-mt-24 md:mt-14" aria-labelledby="tagged-heading" data-motion>
+    <h2 id="tagged-heading" class="sr-only">Posts on {tag}</h2>
+    <div class="mt-4">
+      <Filter groups={groups} items={itemsWithThumbs} pageSize={BLOG_PAGE_SIZE} label={`Filter posts on ${tag}`} dateLabel="Published date" dateMin={dateMin} dateMax={dateMax} view="results" client:visible />
+    </div>
+    <noscript>
+      <p class="mt-8 text-lg text-muted-foreground">
+        Filtering needs JavaScript. Showing all {tagged.length} posts on {tag}.
+      </p>
+      <ol class="mt-2 list-none p-0">
+        {tagged.map((p) => {
+          const source = thumbSources.get(p.id);
+          return (
+          <li class="mt-6 first:mt-0">
+            <a class="ledger-row min-w-0 max-w-full" href={`/blog/${toAtsSlug(p.id)}`} aria-label={p.data.title}>
+              <span class="flex min-w-0 max-w-full items-start gap-4 [overflow-wrap:anywhere]">
+                {source ? (
+                  <Image
+                    src={source.src}
+                    width={128}
+                    format="webp"
+                    quality={60}
+                    alt={source.alt}
+                    loading="lazy"
+                    decoding="async"
+                    class="size-16 flex-none object-cover"
+                  />
+                ) : (
+                  <ThumbPlaceholder name={p.data.title} />
+                )}
+                <span class="min-w-0 text-xl font-medium break-words md:text-2xl">{p.data.title}</span>
+              </span>
+              <span class="ledger-detail min-w-0 text-lg break-words">{p.data.description}</span>
+              <span class="min-w-0 text-base tabular-nums text-muted-foreground md:justify-self-end">
+                <time datetime={p.data.pubDate.toISOString()}>{blogMonthYear(p.data.pubDate)}</time>
+                <span aria-hidden="true"> · </span>{readingTime(p.body ?? "")} min
+              </span>
+            </a>
+          </li>
+          );
+        })}
+      </ol>
+      <p class="mt-8 text-base text-muted-foreground">
+        <a class="text-primary underline underline-offset-4" href={BLOG_PATH}>Browse and filter the full list →</a>
+      </p>
+    </noscript>
+  </section>
+
+  <div slot="secondary">
+    <Filter groups={groups} pageSize={BLOG_PAGE_SIZE} label={`Filter posts on ${tag}`} dateLabel="Published date" dateMin={dateMin} dateMax={dateMax} view="controls" client:only="svelte" />
+    <noscript>
+      <p class="text-lg font-medium">Filters</p>
+      <p class="mt-2 text-base text-muted-foreground">
+        Filtering needs JavaScript. Browse by connection below.
+      </p>
+      {groups.map((g) => (
+        <div class="mt-6">
+          <p class="text-base font-medium">{g.label}</p>
+          <ul class="mt-2 flex flex-col gap-2">
+            {g.options.map((o) => (
+              <li>
+                <a class="text-primary underline underline-offset-4" href={`${BLOG_PATH}?${g.key}=${o.id}`}>{o.label}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </noscript>
+  </div>
+</Layout>

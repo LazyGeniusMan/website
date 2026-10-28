@@ -1,0 +1,9 @@
+{
+  "name": "Faculty of Economics and Business, Universitas Padjadjaran",
+  "alternateName": "FEB Unpad",
+  "description": "Faculty of Economics and Business at Universitas Padjadjaran.",
+  "type": "EducationalOrganization",
+  "url": "https://feb.unpad.ac.id",
+  "parentOrganization": "unpad",
+  "sameAs": ["https://www.linkedin.com/company/febunpad"]
+}

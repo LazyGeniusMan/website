@@ -1,0 +1,461 @@
+---
+import { getCollection } from "astro:content";
+import { Image, getImage } from "astro:assets";
+import Layout from "../../layouts/Layout.astro";
+import TocNav from "$lib/components/islands/TocNav.svelte";
+import DetailRelations from "../../components/DetailRelations.astro";
+import CertFigures from "../../components/CertFigures.astro";
+import FactTable from "../../components/FactTable.astro";
+import Section from "../../components/Section.astro";
+import { initialsOf } from "../../lib/monogram";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import { Button } from "$lib/components/ui/button/index.js";
+import { Separator } from "$lib/components/ui/separator/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
+import { breadcrumbNode, credentialNode, definedTermNode, heroImageNode, imageIdOf, personRefNode, resolveSiteUrl, termsetStub, toGraph, webpageDetailNode } from "../../lib/jsonld";
+import { getProjectsForSkill, getExperienceForSkill, getPostsForSkill, getCredentialsForSkill, proficiencyLabel, categoryLabel, toAtsSlug } from "../../lib/collections";
+import { ORG_LOGO_BY_STEM } from "../../lib/orgLogos";
+
+export async function getStaticPaths() {
+  const all = await getCollection("skills");
+  return all.map((s) => ({ params: { slug: toAtsSlug(s.id) } }));
+}
+
+const { slug } = Astro.params;
+const allSkills = await getCollection("skills");
+const entry = allSkills.find((s) => toAtsSlug(s.id) === slug);
+if (!entry) return Astro.redirect("/404");
+
+const projects = await getProjectsForSkill(entry.id);
+const roles = await getExperienceForSkill(entry.id);
+const posts = await getPostsForSkill(entry.id);
+const credentials = await getCredentialsForSkill(entry.id);
+const eduAll = await getCollection("education");
+const skillStem = entry.id.split("/").pop() ?? entry.id;
+const education = eduAll
+  .filter((e) =>
+    ((e.data.about ?? []) as unknown[]).some((r) => {
+      const raw = typeof r === "string" ? r : (r as { id: string }).id;
+      const stem = raw.split("/").pop() ?? raw;
+      return stem === skillStem || stem === entry.id;
+    }),
+  )
+  .sort((a, b) => a.data.name.localeCompare(b.data.name));
+const eduSlugOf = (e: (typeof eduAll)[number]): string =>
+  toAtsSlug(e.data.publicSlug ?? (e.id.split("/").pop() ?? e.id));
+
+const sortedSkills = [...allSkills].sort((a, b) => a.data.name.localeCompare(b.data.name));
+const skillIdx = sortedSkills.findIndex((s) => toAtsSlug(s.id) === slug);
+const prevSkill = skillIdx > 0 ? sortedSkills[skillIdx - 1] : null;
+const nextSkill = skillIdx >= 0 && skillIdx < sortedSkills.length - 1 ? sortedSkills[skillIdx + 1] : null;
+const orgsAll = await getCollection("organizations");
+const orgByStem = new Map(orgsAll.map((o) => [(o.id.split("/").pop() ?? o.id), o]));
+const stemOfRef = (ref: unknown): string => {
+  const raw = typeof ref === "string" ? ref : (ref as { id: string }).id;
+  return raw.split("/").pop() ?? raw;
+};
+const orgLogoOf = (stem: string): never | null => {
+  if (!stem) return null;
+  const bundled = (ORG_LOGO_BY_STEM as Record<string, unknown>)[stem] ?? null;
+  if (bundled) return bundled as never;
+  const org = orgByStem.get(stem) as unknown as { data: { logo?: unknown } } | undefined;
+  return ((org?.data.logo ?? null) as never | null);
+};
+const skillHeroSrc = ((entry.data.heroImage ?? entry.data.logo ?? null) as never | null);
+const skillHeroVariant = skillHeroSrc
+  ? await getImage({ src: skillHeroSrc, width: 640, quality: 55, format: "webp" })
+  : null;
+const skillImageNode = heroImageNode({
+  heroImage: skillHeroVariant,
+  heroCredit: entry.data.heroCredit,
+  heroSource: entry.data.heroSource,
+  pagePath: `/skills/${slug}`,
+});
+const skillImageId = imageIdOf(skillImageNode);
+const skillInitials = initialsOf(entry.data.name);
+const skillGallerySrcs = (((entry.data as { images?: unknown }).images ?? []) as never[]).filter(Boolean);
+const skillGalleryVariants = await Promise.all(
+  skillGallerySrcs.map((src) => getImage({ src, width: 640, quality: 55, format: "webp" })),
+);
+const skillGalleryNodes = skillGalleryVariants
+  .map((variant) =>
+    heroImageNode({
+      heroImage: variant,
+      heroCredit: entry.data.heroCredit,
+      heroSource: entry.data.heroSource,
+      pagePath: `/skills/${slug}`,
+    }),
+  )
+  .filter((n) => !!n);
+
+const employerMarks = [...new Map(
+  ((roles as { id: string; data: { roleName: string; worksFor?: unknown } }[]).map((e) => {
+    const stem = e.data.worksFor ? stemOfRef(e.data.worksFor) : "";
+    const org = orgByStem.get(stem);
+    return [stem, { href: `/organizations/${toAtsSlug(stem)}`, name: org?.data.name ?? stem, logo: orgLogoOf(stem) ?? org?.data.logo }] as const;
+  }).filter(([stem]) => !!stem)),
+).values()];
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const graphNodes = toGraph([
+  definedTermNode({
+    slug: entry.id,
+    siteUrl,
+    name: entry.data.name,
+    ...(entry.data.alternateName ? { alternateName: entry.data.alternateName } : {}),
+    description: entry.data.description ?? entry.data.name,
+    ...(entry.data.proficiencyLevel ? { proficiencyLevel: entry.data.proficiencyLevel } : {}),
+    ...(entry.data.category ? { category: entry.data.category } : {}),
+    ...(entry.data.url ? { url: entry.data.url } : {}),
+    ...((entry.data.sameAs ?? []).length ? { sameAs: entry.data.sameAs } : {}),
+  }),
+  webpageDetailNode(
+    `/skills/${slug}`,
+    siteUrl,
+    entry.data.name,
+    skillImageId ? { primaryImageOfPage: { "@id": skillImageId } } : undefined,
+  ),
+  personRefNode(siteUrl),
+
+  termsetStub(),
+
+  ...projects.map((p) => ({
+    "@type": p.data.type,
+    "@id": `${siteUrl}/projects/${toAtsSlug(p.id)}#project`,
+    url: `${siteUrl}/projects/${toAtsSlug(p.id)}`,
+    name: p.data.title,
+  })),
+  ...roles.map((r) => ({
+    "@type": "Occupation" as const,
+    "@id": `${siteUrl}/experience/${toAtsSlug(r.id)}#occupation`,
+    url: `${siteUrl}/experience/${toAtsSlug(r.id)}`,
+    name: r.data.occupation?.name ?? r.data.roleName,
+  })),
+  ...credentials.map((c) => {
+    const rec = c.data.recognizedBy as unknown as { id: string } | string | undefined;
+    const aboutStems = ((c.data.about ?? []) as unknown[]).map((r) => {
+      const raw = typeof r === "string" ? r : (r as { id: string }).id;
+      return raw.split("/").pop() ?? raw;
+    });
+    const cSlug = toAtsSlug(c.data.publicSlug ?? (c.id.split("/").pop() ?? c.id));
+    return credentialNode({
+      slug: cSlug,
+      siteUrl,
+      name: c.data.name,
+      ...(c.data.description ? { description: c.data.description } : {}),
+      ...(c.data.credentialCategory ? { credentialCategory: c.data.credentialCategory } : {}),
+      ...(c.data.educationalLevel ? { educationalLevel: c.data.educationalLevel } : {}),
+      ...(c.data.url ? { url: c.data.url } : {}),
+      ...(rec
+        ? {
+            recognizedByStem: ((typeof rec === "string" ? rec : rec.id).split("/").pop() ?? ""),
+          }
+        : {}),
+      ...(aboutStems.length ? { aboutStems } : {}),
+    });
+  }),
+  ...education.map((e) =>
+    credentialNode({
+      slug: eduSlugOf(e),
+      siteUrl,
+      pathPrefix: "education",
+      name: e.data.name,
+      ...(e.data.description ? { description: e.data.description } : {}),
+      credentialCategory: e.data.credentialCategory,
+      ...(e.data.educationalLevel ? { educationalLevel: e.data.educationalLevel } : {}),
+      ...(e.data.url ? { url: e.data.url } : {}),
+      recognizedByStem: ((typeof e.data.recognizedBy === "string"
+        ? e.data.recognizedBy
+        : (e.data.recognizedBy as { id: string }).id
+      ).split("/").pop() ?? ""),
+      ...(e.data.startDate ? { startDate: e.data.startDate } : {}),
+      ...(e.data.endDate ? { endDate: e.data.endDate } : {}),
+    }),
+  ),
+  ...(skillImageNode ? [skillImageNode] : []),
+  ...skillGalleryNodes,
+  breadcrumbNode(`/skills/${slug}`, [
+    { name: "Home", item: "/" },
+    { name: "Skills", item: "/skills" },
+    { name: entry.data.name, item: `/skills/${slug}` },
+  ]),
+]);
+---
+
+<Layout title={entry.data.name} description={entry.data.description ?? entry.data.name} graphNodes={graphNodes} breadcrumb={[{ name: "Home", item: "/" }, { name: "Skills", item: "/skills" }, { name: entry.data.name }]}>
+  <div slot="secondary">
+    <TocNav
+      client:visible
+      items={[
+        { id: "hero", label: "Skill" },
+        ...(skillGallerySrcs.length > 0 ? [{ id: "gallery", label: "Gallery" }] : []),
+        { id: "content", label: "Content" },
+        ...((projects.length > 0 || roles.length > 0 || posts.length > 0 || credentials.length > 0 || education.length > 0 || employerMarks.length > 0) ? [{ id: "relations", label: "Relations" }] : []),
+        ...(credentials.length > 0 ? [{ id: "seals", label: "Seals" }] : []),
+        { id: "metadata", label: "Metadata" },
+      ]}
+    />
+  </div>
+  <Section variant="sheet" labelledby="skill-heading">
+    <h1 id="skill-heading" class="title-record mt-3 max-w-4xl text-balance">{entry.data.name}</h1>
+    {skillHeroVariant && skillHeroSrc ? (
+      <figure id="hero" class="mt-8 max-w-full min-w-0 scroll-mt-24" data-motion>
+        <Image
+          src={skillHeroSrc}
+          width={640}
+          format="webp"
+          quality={55}
+          alt={`${entry.data.name} illustration`}
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+          class="aspect-[21/9] w-full rounded-none object-cover object-center"
+        />
+        {(entry.data.heroCredit || entry.data.heroSource) && <figcaption class="credit-line mt-2">{entry.data.heroCredit}{entry.data.heroSource && <> <a class="underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</figcaption>}
+      </figure>
+    ) : (
+      <figure id="hero" class="mt-8 max-w-full min-w-0 scroll-mt-24" data-motion>
+        <div
+          class="flex aspect-[21/9] w-full min-w-0 max-w-full items-center justify-center rounded-none"
+          style="background-color: color-mix(in oklab, var(--color-primary) 16%, var(--color-muted)); color: var(--color-foreground);"
+          role="img"
+          aria-label={`${entry.data.name} placeholder`}
+        >
+          <span aria-hidden="true" class="font-display text-6xl font-bold">{skillInitials}</span>
+        </div>
+        {(entry.data.heroCredit || entry.data.heroSource) && <figcaption class="credit-line mt-2">{entry.data.heroCredit}{entry.data.heroSource && <> <a class="underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</figcaption>}
+      </figure>
+    )}
+    {entry.data.description && <p class="mt-6 max-w-xl text-xl leading-snug">{entry.data.description}</p>}
+    {entry.data.alternateName && <p class="mt-2 max-w-xl text-lg text-muted-foreground">Also known as {entry.data.alternateName}</p>}
+    <div class="mt-5 flex flex-wrap gap-2">
+      {entry.data.proficiencyLevel && <Badge class="rounded-none text-sm" variant="secondary">Proficiency: {proficiencyLabel(entry.data.proficiencyLevel)}</Badge>}
+      {entry.data.category && <Badge class="rounded-none text-sm" variant="outline">{categoryLabel(entry.data.category)}</Badge>}
+    </div>
+    {skillGalleryVariants.length > 0 && (
+      <Card.Root id="gallery" class="rounded-none mt-10 scroll-mt-24" aria-labelledby="gallery-heading" data-motion>
+        <Card.Header>
+          <Card.Title class="text-lg"><h2 id="gallery-heading" class="text-lg font-medium">Gallery</h2></Card.Title>
+          <Card.Description>{skillGalleryVariants.length} images.</Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <div class="grid gap-6 md:grid-cols-2">
+          {skillGallerySrcs.map((src, i) => (
+            <figure>
+              <Image
+                src={src as never}
+                width={640}
+                format="webp"
+                quality={55}
+                alt={`${entry.data.name}, image ${i + 1}`}
+                loading="lazy"
+                decoding="async"
+                class="aspect-[21/9] w-full object-cover"
+              />
+              {(entry.data.heroCredit || entry.data.heroSource) && <figcaption class="credit-line mt-2">{entry.data.heroCredit}{entry.data.heroSource && <> <a class="underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</figcaption>}
+            </figure>
+          ))}
+          </div>
+        </Card.Content>
+      </Card.Root>
+    )}
+    <div id="content" class="mt-10 scroll-mt-24" data-motion>
+      <Card.Root class="rounded-none">
+        <Card.Header>
+          <Card.Title class="text-lg"><h2 class="text-lg font-medium">Content</h2></Card.Title>
+          <Card.Description>What this skill covers.</Card.Description>
+        </Card.Header>
+        <Card.Content class="max-w-[65ch]">
+          <p class="text-lg">{entry.data.description ?? entry.data.name}</p>
+        </Card.Content>
+      </Card.Root>
+    </div>
+    {(prevSkill || nextSkill) && (
+      <nav aria-label="More skills" class="mt-10" data-motion>
+        <Separator class="mb-6" />
+        <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:justify-between">
+          {prevSkill ? (
+            <Button rel="prev" variant="link" href={`/skills/${toAtsSlug(prevSkill.id)}`} class="rounded-none h-auto min-w-0 justify-start p-0 text-left text-lg whitespace-normal underline sm:max-w-[46%]">
+              <span aria-hidden="true">← </span>{prevSkill.data.name}
+            </Button>
+          ) : <span />}
+          {nextSkill ? (
+            <Button rel="next" variant="link" href={`/skills/${toAtsSlug(nextSkill.id)}`} class="rounded-none h-auto min-w-0 justify-start p-0 text-left text-lg whitespace-normal underline sm:max-w-[46%] sm:text-right">
+              {nextSkill.data.name}<span aria-hidden="true"> →</span>
+            </Button>
+          ) : <span />}
+        </div>
+      </nav>
+    )}
+    {(projects.length > 0 || roles.length > 0 || posts.length > 0 || credentials.length > 0 || education.length > 0 || employerMarks.length > 0) && (
+      <DetailRelations
+        description="Every linked metadata for this skill."
+        groups={[
+          ...(projects.length > 0 ? [{ label: "Projects", items: projects.map((pp) => {
+            const own = (((pp.data as { heroImage?: unknown }).heroImage ?? (pp.data as { logo?: unknown }).logo ?? null)) as never | null;
+            const provRef = (pp.data as { provider?: unknown; isPartOf?: unknown }).provider ?? (pp.data as { isPartOf?: unknown }).isPartOf;
+            return { title: pp.data.title, href: `/projects/${toAtsSlug(pp.id.split("/").pop() ?? pp.id)}`, thumb: (own ?? (provRef ? orgLogoOf(stemOfRef(provRef)) : null)), thumbName: pp.data.title };
+          }) }] : []),
+          ...(roles.length > 0 ? [{ label: "Work Experience", items: roles.map((e) => {
+            const own = (((e.data as { heroImage?: unknown }).heroImage ?? (e.data as { logo?: unknown }).logo ?? null)) as never | null;
+            const worksRef = (e.data as { worksFor?: unknown }).worksFor;
+            return { title: e.data.roleName, href: `/experience/${toAtsSlug(e.id.split("/").pop() ?? e.id)}`, thumb: (own ?? (worksRef ? orgLogoOf(stemOfRef(worksRef)) : null)), thumbName: e.data.roleName };
+          }) }] : []),
+          ...(posts.length > 0 ? [{ label: "Blog", items: posts.map((pp) => ({ title: pp.data.title, href: `/blog/${toAtsSlug(pp.id.split("/").pop() ?? pp.id)}`, thumb: ((((pp.data as { heroImage?: unknown }).heroImage ?? (pp.data as { logo?: unknown }).logo ?? null)) as never | null), thumbName: pp.data.title })) }] : []),
+          ...(credentials.length > 0 ? [{ label: "Certifications", items: credentials.map((c) => {
+            const own = (((c.data as { heroImage?: unknown }).heroImage ?? (c.data as { logo?: unknown }).logo ?? null)) as never | null;
+            const recRef = (c.data as { recognizedBy?: unknown }).recognizedBy;
+            return { title: c.data.name, href: `/certifications/${toAtsSlug(c.data.publicSlug ?? (c.id.split("/").pop() ?? c.id))}`, thumb: (own ?? (recRef ? orgLogoOf(stemOfRef(recRef)) : null)), thumbName: c.data.name };
+          }) }] : []),
+          ...(education.length > 0 ? [{ label: "Education", items: education.map((e) => {
+            const own = (((e.data as { heroImage?: unknown }).heroImage ?? (e.data as { logo?: unknown }).logo ?? null)) as never | null;
+            const recRef = (e.data as { recognizedBy?: unknown }).recognizedBy;
+            return { title: e.data.name, href: `/education/${eduSlugOf(e)}`, thumb: (own ?? (recRef ? orgLogoOf(stemOfRef(recRef)) : null)), thumbName: e.data.name };
+          }) }] : []),
+          ...(employerMarks.length > 0 ? [{ label: "Organizations", items: employerMarks.map((m) => ({ title: m.name, href: m.href, thumb: (m.logo ?? null) as never | null, thumbName: m.name })) }] : []),
+        ]}
+      />
+    )}
+    {credentials.length > 0 && (
+      <Card.Root id="seals" class="rounded-none mt-10 scroll-mt-24" aria-labelledby="seals-heading" data-motion>
+        <Card.Header>
+          <Card.Title class="text-lg"><h2 id="seals-heading" class="text-lg font-medium">Certification seals</h2></Card.Title>
+          <Card.Description>{credentials.length} linked.</Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <CertFigures slugs={credentials.map((c) => c.data.publicSlug ?? (c.id.split("/").pop() ?? c.id))} />
+        </Card.Content>
+      </Card.Root>
+    )}
+    <Section variant="ledger" label="Metadata">
+    <section id="metadata" class="mt-10 scroll-mt-24" data-motion>
+      <FactTable title="Metadata" caption="Every field on this skill, with links to its relations.">
+        <Table.Row>
+          <Table.Cell class="w-36 align-top font-medium">Name</Table.Cell>
+          <Table.Cell>{entry.data.name}</Table.Cell>
+        </Table.Row>
+        {entry.data.alternateName && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Also known as</Table.Cell>
+            <Table.Cell>{entry.data.alternateName}</Table.Cell>
+          </Table.Row>
+        )}
+        {entry.data.description && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Description</Table.Cell>
+            <Table.Cell>{entry.data.description}</Table.Cell>
+          </Table.Row>
+        )}
+        {entry.data.proficiencyLevel && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Proficiency</Table.Cell>
+            <Table.Cell>{proficiencyLabel(entry.data.proficiencyLevel)}</Table.Cell>
+          </Table.Row>
+        )}
+        {entry.data.category && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Category</Table.Cell>
+            <Table.Cell>{categoryLabel(entry.data.category)}</Table.Cell>
+          </Table.Row>
+        )}
+        {entry.data.url && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Reference</Table.Cell>
+            <Table.Cell><a class="text-primary underline underline-offset-4" href={entry.data.url}>{new URL(entry.data.url).hostname}</a></Table.Cell>
+          </Table.Row>
+        )}
+        {(entry.data.heroImage || entry.data.logo || (entry.data.images ?? []).length > 0 || entry.data.heroCredit || entry.data.heroSource) && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Hero</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{entry.data.heroCredit ?? "Skill illustration"}</span>{entry.data.heroSource && <> <a class="text-primary underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</Table.Cell>
+          </Table.Row>
+        )}
+        {skillGallerySrcs.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Gallery</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{skillGallerySrcs.length} {skillGallerySrcs.length === 1 ? "image" : "images"} below the hero</span></Table.Cell>
+          </Table.Row>
+        )}
+        {projects.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Projects</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {projects.map((p) => (
+                  <Badge class="rounded-none text-sm" href={`/projects/${toAtsSlug(p.id.split("/").pop() ?? p.id)}`} variant="outline">{p.data.title}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {roles.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Work Experience</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {roles.map((e) => (
+                  <Badge class="rounded-none text-sm" href={`/experience/${toAtsSlug(e.id.split("/").pop() ?? e.id)}`} variant="outline">{e.data.roleName}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {posts.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Blog</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {posts.map((p) => (
+                  <Badge class="rounded-none text-sm" href={`/blog/${toAtsSlug(p.id.split("/").pop() ?? p.id)}`} variant="outline">{p.data.title}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {credentials.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Certifications</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {credentials.map((c) => (
+                  <Badge class="rounded-none text-sm" href={`/certifications/${toAtsSlug(c.data.publicSlug ?? (c.id.split("/").pop() ?? c.id))}`} variant="outline">{c.data.name}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {education.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Education</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {education.map((e) => (
+                  <Badge class="rounded-none text-sm" href={`/education/${eduSlugOf(e)}`} variant="outline">{e.data.name}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {(entry.data.sameAs ?? []).length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Same as</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-x-4 gap-y-1">
+                {(entry.data.sameAs ?? []).filter((s) => s !== entry.data.url).map((s) => (
+                  <a class="text-primary underline underline-offset-4" href={s}>{(() => { try { return new URL(s).hostname; } catch { return s; } })()}</a>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Canonical</Table.Cell>
+          <Table.Cell><span class="text-muted-foreground">/skills/{slug}</span></Table.Cell>
+        </Table.Row>
+      </FactTable>
+    </section>
+    </Section>
+    <p class="mt-10 flex flex-wrap gap-x-6 gap-y-1 text-lg"><Button variant="link" href="/skills" class="rounded-none h-auto p-0 text-lg underline">All skills</Button><Button variant="link" href="/about" class="rounded-none h-auto p-0 text-lg underline">About</Button></p>
+  </Section>
+</Layout>

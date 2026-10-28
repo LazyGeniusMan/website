@@ -18,7 +18,7 @@ jobs:
   pr-check:
     name: PR check (diff scope)
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -35,7 +35,7 @@ jobs:
   main-check:
     name: Main check (full scope)
     if: ${{ github.event_name == 'push' }}
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout

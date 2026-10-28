@@ -1,0 +1,22 @@
+{
+  "name": "Bachelor of Accounting",
+  "description": "GPA 3.59.\nThesis: Business Process Automation Using Business Process Management System (Case Study on the Yearly Motor Vehicle Tax Collection Process at Samsat).\nFavorite courses: Business Process Management, IT Governance, Management Information System, Accounting Information System, Database Management System, System Analysis and Design Method.",
+  "educationalLevel": "Bachelor's degree",
+  "credentialCategory": "degree",
+  "recognizedBy": "unpad",
+  "department": "feb-unpad",
+  "about": [
+    "business-process-management",
+    "business-process-improvement",
+    "information-systems",
+    "bpmn",
+    "dmn",
+    "problem-solving",
+    "systematic-thinking",
+    "analytical-skill",
+    "critical-thinking"
+  ],
+  "startDate": "2018",
+  "endDate": "2023",
+  "url": "https://feb.unpad.ac.id"
+}

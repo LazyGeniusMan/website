@@ -1,0 +1,140 @@
+---
+import { Image } from "astro:assets";
+import Section from "./Section.astro";
+import ThumbPlaceholder from "./ThumbPlaceholder.astro";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import { Button } from "$lib/components/ui/button/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import * as Empty from "$lib/components/ui/empty/index.js";
+
+export interface RelationBadge {
+  label: string;
+  href?: string;
+}
+
+export interface RelationItem {
+  title: string;
+  href: string;
+  meta?: string;
+  detail?: string;
+  thumb?: never | null;
+  thumbName: string;
+  badges?: RelationBadge[];
+}
+
+export interface RelationGroup {
+  label: string;
+  items: RelationItem[];
+}
+
+interface Props {
+  groups: RelationGroup[];
+  description?: string;
+}
+
+const { groups, description = "Every linked metadata." } = Astro.props;
+const visible = (groups ?? []).filter((g) => g && Array.isArray(g.items) && g.items.length > 0);
+---
+
+<Section variant="ledger" label="Relations">
+  <div id="relations" class="max-w-full min-w-0 scroll-mt-24 pb-16 xl:pb-0">
+    <Card.Root class="rounded-none min-w-0 max-w-full">
+      <Card.Header class="min-w-0 max-w-full">
+        <Card.Title class="min-w-0 max-w-full">
+          <h2 class="text-lg font-medium [overflow-wrap:anywhere]">Relations</h2>
+        </Card.Title>
+        <Card.Description class="min-w-0 max-w-full [overflow-wrap:anywhere]">{description}</Card.Description>
+      </Card.Header>
+      <Card.Content class="min-w-0 max-w-full">
+        {visible.length === 0 ? (
+          <Empty.Root class="min-w-0 max-w-full">
+            <Empty.Header>
+              <Empty.Title>No linked entries</Empty.Title>
+              <Empty.Description>Nothing linked here yet.</Empty.Description>
+            </Empty.Header>
+          </Empty.Root>
+        ) : (
+          <div class="flex min-w-0 max-w-full flex-col gap-8 [overflow-wrap:anywhere]">
+            {visible.map((group) => (
+              <section aria-label={group.label} class="min-w-0 max-w-full">
+                <h3 class="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
+                  {group.label}
+                  <span class="text-muted-foreground ml-2 tabular-nums">({group.items.length})</span>
+                </h3>
+                <ul class="mt-4 grid min-w-0 max-w-full list-none grid-cols-[repeat(1,minmax(0,1fr))] gap-4 p-0 sm:grid-cols-[repeat(2,minmax(0,1fr))] lg:grid-cols-[repeat(3,minmax(0,1fr))] [overflow-wrap:anywhere]">
+                  {group.items.map((item) => (
+                    <li class="min-w-0">
+                      <Card.Root class="flex h-full min-w-0 max-w-full flex-col rounded-none [overflow-wrap:anywhere]">
+                        <Card.Header class="min-w-0 max-w-full">
+                          <div class="flex min-w-0 flex-row items-start gap-4">
+                            {item.thumb ? (
+                              <Image
+                                src={item.thumb}
+                                width={128}
+                                format="webp"
+                                quality={70}
+                                alt=""
+                                loading="lazy"
+                                decoding="async"
+                                class="size-16 flex-none rounded-none object-cover"
+                              />
+                            ) : (
+                              <ThumbPlaceholder name={item.thumbName} />
+                            )}
+                            <div class="min-w-0 flex-1">
+                              <Card.Title class="text-xl leading-snug font-medium min-w-0 [overflow-wrap:anywhere]">
+                                <a href={item.href} class="underline-offset-4 hover:text-primary hover:underline">
+                                  {item.title}
+                                </a>
+                              </Card.Title>
+                              {item.meta && (
+                                <Card.Description class="mt-2 text-base leading-relaxed min-w-0 [overflow-wrap:anywhere]">
+                                  {item.meta}
+                                </Card.Description>
+                              )}
+                            </div>
+                          </div>
+                        </Card.Header>
+                        {(item.detail || (item.badges?.length ?? 0) > 0) && (
+                          <Card.Content class="min-w-0 max-w-full">
+                            {item.detail && (
+                              <p class="min-w-0 max-w-full text-base leading-relaxed [overflow-wrap:anywhere]">{item.detail}</p>
+                            )}
+                            {(item.badges?.length ?? 0) > 0 && (
+                              <p class="mt-3 flex flex-wrap gap-2 min-w-0 max-w-full">
+                                {(item.badges ?? []).map((b) =>
+                                  b.href ? (
+                                    <Badge href={b.href} variant="outline" class="max-w-full rounded-none text-sm font-normal whitespace-normal [overflow-wrap:anywhere]">
+                                      {b.label}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" class="max-w-full rounded-none text-sm font-normal whitespace-normal [overflow-wrap:anywhere]">
+                                      {b.label}
+                                    </Badge>
+                                  ),
+                                )}
+                              </p>
+                            )}
+                          </Card.Content>
+                        )}
+                        <Card.Footer class="mt-auto min-w-0 max-w-full flex-wrap gap-3 rounded-none [overflow-wrap:anywhere]">
+                          <Button
+                            href={item.href}
+                            variant="link"
+                            class="rounded-none h-auto max-w-full min-w-0 min-h-9 p-0 text-left whitespace-normal underline [overflow-wrap:anywhere]"
+                          >
+                            View details
+                          </Button>
+                        </Card.Footer>
+                      </Card.Root>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
+      </Card.Content>
+    </Card.Root>
+  </div>
+</Section>

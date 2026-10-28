@@ -1,10 +1,22 @@
 [env]
+TURUTAN_PROJECT_DIR = "{{ config_root }}"
 PROTON_PASS_KEY_PROVIDER = "{{ exec(command='sh scripts/proton-pass-detect-key-provider.sh') | trim }}"
+RCLONE_CONFIG_PROTON_TYPE = "protondrive"
+RCLONE_CONFIG_R2_TYPE = "s3"
+RCLONE_CONFIG_R2_PROVIDER = "Cloudflare"
+RCLONE_CONFIG_R2_REGION = "auto"
+RCLONE_CONFIG_R2_ACL = "private"
+RCLONE_CONFIG_R2_NO_CHECK_BUCKET = "true"
+CHROME_PATH = "{{ config_root }}/.config/mise/scripts/chrome-no-sandbox.sh"
+T3CODE_SERVER_BROWSER_SANDBOX = 0
 
 [tools]
+caddy = "2"
 node = "24"
+rclone = "1"
 "github:protonpass/pass-cli" = "2"
 "npm:@earendil-works/pi-coding-agent" = "1"
+"npm:@puppeteer/browsers" = "3"
 "npm:t3" = "0"
 
 [daemons.t3code]
@@ -18,13 +30,20 @@ secrets = ["KEENABLE_API_KEY", "FNOX_GITHUB_TOKEN"]
 env = { "AI_RULEZ_GIT_TOKEN" = "{{ secrets.FNOX_GITHUB_TOKEN }}" }
 run = "ai-rulez migrate okf && ai-rulez generate"
 
+[tasks."dev-setup:browser"]
+run = 'exec sudo env "PATH=$PATH" browsers install chrome-headless-shell@stable --path .tmp --install-deps'
+
+[tasks."dev-setup:t3code:browser"]
+run = 'exec sudo env "PATH=$PATH" t3 browser setup'
+
 [tasks."dev:t3code:start"]
 depends = "dev-setup:fnox"
 daemons = "t3code"
-run = "t3 browser setup && echo 'T3 Code Web UI is running on {{ env.PROXY_URI | replace(from='{{port}}', to=env.T3CODE_PORT) }}'"
+run = "echo 'T3 Code Web UI is running on {{ env.PROXY_URI | replace(from='{{port}}', to=env.T3CODE_PORT) }}'"
 
 [tasks."dev:t3code:pair"]
 depends = "dev:t3code:start"
+daemons = "t3code"
 run = "t3 pair"
 
 [tasks."dev-setup:fnox-provider"]
@@ -35,3 +54,29 @@ if ! pass-cli info; then
     pass-cli login
 fi
 '''
+
+[tasks."site:assets:fetch"]
+description = "Fetch raw assets via rclone (R2 active, Proton ready; env-only, no rclone.conf)"
+secrets = [
+  # rclone creds ~keep
+  "RCLONE_CONFIG_PROTON_USERNAME",
+  "RCLONE_CONFIG_PROTON_PASSWORD",
+  "RCLONE_CONFIG_PROTON_OTP_SECRET_KEY",
+  "RCLONE_CONFIG_R2_ACCESS_KEY_ID",
+  "RCLONE_CONFIG_R2_SECRET_ACCESS_KEY",
+  "RCLONE_CONFIG_R2_ENDPOINT",
+]
+run = "fnox exec -- node apps/personal-site/scripts/fetch-assets.mjs && fnox exec -- node apps/personal-site/scripts/fetch-assets.mjs --asset-dir assets"
+
+[tasks."site:assets:upload"]
+description = "Upload raw assets via rclone (R2 active, Proton ready; env-only, no rclone.conf)"
+secrets = [
+  # rclone creds ~keep
+  "RCLONE_CONFIG_PROTON_USERNAME",
+  "RCLONE_CONFIG_PROTON_PASSWORD",
+  "RCLONE_CONFIG_PROTON_OTP_SECRET_KEY",
+  "RCLONE_CONFIG_R2_ACCESS_KEY_ID",
+  "RCLONE_CONFIG_R2_SECRET_ACCESS_KEY",
+  "RCLONE_CONFIG_R2_ENDPOINT",
+]
+run = "fnox exec -- node apps/personal-site/scripts/fetch-assets.mjs --upload"

@@ -1,0 +1,482 @@
+---
+import { Image, getImage } from "astro:assets";
+import { render, getEntries, getCollection } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
+import TocNav from "$lib/components/islands/TocNav.svelte";
+import DetailRelations from "../../components/DetailRelations.astro";
+import FactTable from "../../components/FactTable.astro";
+import Section from "../../components/Section.astro";
+import ThumbPlaceholder from "../../components/ThumbPlaceholder.astro";
+import { initialsOf } from "../../lib/monogram";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import { Button } from "$lib/components/ui/button/index.js";
+import { Separator } from "$lib/components/ui/separator/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
+import { blogPostingNode, breadcrumbNode, heroImageNode, imageIdOf, personRefNode, resolveSiteUrl, toGraph, webpageDetailNode } from "../../lib/jsonld";
+import { publishedPosts, readingTime, relatedPosts, resolveBlogAuthors, toAtsSlug } from "../../lib/collections";
+import { blogLangLabel, blogMonthYear } from "../../lib/lists/blog";
+
+export async function getStaticPaths() {
+  const posts = await publishedPosts();
+  return posts.map((p) => ({ params: { slug: toAtsSlug(p.id) } }));
+}
+
+const { slug } = Astro.params;
+const posts = await publishedPosts();
+const entryIdx = posts.findIndex((p) => toAtsSlug(p.id) === slug);
+if (entryIdx < 0) return Astro.redirect("/404");
+const entry = posts[entryIdx];
+const newerPost = entryIdx > 0 ? posts[entryIdx - 1] : undefined;
+const olderPost = entryIdx < posts.length - 1 ? posts[entryIdx + 1] : undefined;
+const { Content, headings } = await render(entry);
+const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
+const related = relatedPosts(entry, posts);
+const minutes = readingTime(entry.body ?? "");
+
+const authors = await resolveBlogAuthors(entry);
+const authorEntries = authors as { id: string; data: { name: string } }[];
+const authorNames = authorEntries.length > 0 ? authorEntries.map((a) => a.data.name) : ["Andriyansyah Nurrachman"];
+const authorName = authorNames[0];
+
+const blogOrgsAll = await getCollection("organizations");
+const blogOrgByStem = new Map(blogOrgsAll.map((o) => [(o.id.split("/").pop() ?? o.id), o]));
+const stemOfRef = (ref: unknown): string => {
+  const raw = typeof ref === "string" ? ref : (ref as { id: string }).id;
+  return raw.split("/").pop() ?? raw;
+};
+const aboutRefs = ((entry.data.about ?? []) as { id: string }[]);
+
+let aboutEntries: unknown[] = [];
+if (aboutRefs.length) {
+  try {
+    aboutEntries = await getEntries(aboutRefs as never);
+  } catch (e) {
+    throw new Error(`blog/${entry.id}: unresolvable about ref`, { cause: e });
+  }
+  if (aboutEntries.length !== aboutRefs.length || aboutEntries.some((a) => !a)) {
+    throw new Error(`blog/${entry.id}: dangling about ref`);
+  }
+}
+const mentionRefs = ((entry.data.mentions ?? []) as { id: string }[]);
+
+
+const aboutExpRefs = ((entry.data.aboutExperience ?? []) as unknown as { id: string }[]);
+let aboutExpEntries: unknown[] = [];
+if (aboutExpRefs.length) {
+  try {
+    aboutExpEntries = await getEntries(aboutExpRefs as never);
+  } catch (e) {
+    throw new Error(`blog/${entry.id}: unresolvable aboutExperience ref`, { cause: e });
+  }
+  if (aboutExpEntries.length !== aboutExpRefs.length || aboutExpEntries.some((a) => !a)) {
+    throw new Error(`blog/${entry.id}: dangling aboutExperience ref`);
+  }
+}
+const employerMarks = [...new Map(
+  ((aboutExpEntries as { id: string; data: { roleName: string; worksFor?: unknown } }[]).map((e) => {
+    const stem = e.data.worksFor ? stemOfRef(e.data.worksFor) : "";
+    const org = blogOrgByStem.get(stem);
+    return [stem, { href: `/organizations/${stem}`, name: org?.data.name ?? stem, logo: org?.data.logo }] as const;
+  }).filter(([stem]) => !!stem)),
+).values()];
+let mentionEntries: unknown[] = [];
+if (mentionRefs.length) {
+  try {
+    mentionEntries = await getEntries(mentionRefs as never);
+  } catch (e) {
+    throw new Error(`blog/${entry.id}: unresolvable mentions ref`, { cause: e });
+  }
+  if (mentionEntries.length !== mentionRefs.length || mentionEntries.some((m) => !m)) {
+    throw new Error(`blog/${entry.id}: dangling mentions ref`);
+  }
+}
+
+
+const publisherRef = entry.data.publisher as unknown as { id: string } | string | undefined;
+const publisherStem = !publisherRef
+  ? null
+  : (typeof publisherRef === "string" ? publisherRef : publisherRef.id).split("/").pop();
+if (publisherRef && publisherStem !== "andriyansyah") {
+  throw new Error(`blog/${entry.id}: unknown publisher ref ${publisherStem}`);
+}
+
+const siteUrl = resolveSiteUrl(Astro.site);
+
+// Single-image detail contract: heroImage first, then logo fallback.
+const heroSrc = (entry.data.heroImage ?? (entry.data as { logo?: unknown }).logo ?? null) as never | null;
+const heroIsLogo = !entry.data.heroImage && !!(entry.data as { logo?: unknown }).logo;
+
+const heroVariant = heroSrc
+  ? await getImage({ src: heroSrc, width: 640, quality: 55, format: "webp" })
+  : null;
+const heroInitials = initialsOf(entry.data.title);
+const imageNode = heroImageNode({
+  heroImage: heroVariant,
+  heroCredit: entry.data.heroCredit,
+  heroSource: entry.data.heroSource,
+  pagePath: `/blog/${slug}`,
+});
+
+// Detail gallery: images[] renders after the hero figure.
+const gallerySrcs = (((entry.data as { images?: unknown }).images ?? []) as never[]).filter(Boolean);
+const galleryVariants = await Promise.all(
+  gallerySrcs.map((src) => getImage({ src, width: 640, quality: 55, format: "webp" })),
+);
+const galleryNodes = galleryVariants
+  .map((variant) =>
+    heroImageNode({
+      heroImage: variant,
+      heroCredit: entry.data.heroCredit,
+      heroSource: entry.data.heroSource,
+      pagePath: `/blog/${slug}`,
+    }),
+  )
+  .filter((n) => !!n);
+
+
+
+const imageId = imageIdOf(imageNode);
+const graphNodes = toGraph([
+  blogPostingNode(
+    entry,
+    { authors, about: aboutEntries, aboutExperience: aboutExpEntries, mentions: mentionEntries },
+    siteUrl,
+    imageId,
+  ),
+  webpageDetailNode(
+    `/blog/${slug}`,
+    siteUrl,
+    entry.data.title,
+    imageId ? { primaryImageOfPage: { "@id": imageId } } : undefined,
+  ),
+  personRefNode(siteUrl, authorName),
+  breadcrumbNode(`/blog/${slug}`, [
+    { name: "Home", item: "/" },
+    { name: "Blog", item: "/blog" },
+    { name: entry.data.title, item: `/blog/${slug}` },
+  ]),
+  ...(imageNode ? [imageNode] : []),
+  ...galleryNodes,
+]);
+---
+
+<Layout
+  title={entry.data.title}
+  description={entry.data.description}
+  lang={(entry.data.inLanguage as string) ?? "id"}
+  graphNodes={graphNodes}
+  breadcrumb={[{ name: "Home", item: "/" }, { name: "Blog", item: "/blog" }, { name: entry.data.title }]}
+>
+  <div slot="secondary">
+    <TocNav
+      client:visible
+      items={[
+        { id: "hero", label: "Post" },
+        ...(galleryVariants.length > 0 ? [{ id: "gallery", label: "Gallery" }] : []),
+        { id: "content", label: "Content" },
+        ...toc.slice(0, 8).map((h) => ({ id: h.slug, label: h.text, depth: h.depth })),
+        ...(related.length > 0 ? [{ id: "related", label: "Related posts" }] : []),
+        ...((aboutEntries.length > 0 || aboutExpEntries.length > 0 || mentionEntries.length > 0 || employerMarks.length > 0) ? [{ id: "relations", label: "Relations" }] : []),
+        { id: "metadata", label: "Metadata" },
+      ]}
+    />
+  </div>
+  <article class="page-margin pt-10 md:pt-16" aria-labelledby="post-heading" data-motion>
+    <h1 id="post-heading" class="title-record mt-3 max-w-4xl text-balance">
+      {entry.data.title}
+    </h1>
+    <p class="mt-4 flex flex-wrap items-center gap-3 text-lg">
+      <time class="tabular-nums text-muted-foreground" datetime={entry.data.pubDate.toISOString()}>
+        {blogMonthYear(entry.data.pubDate)}
+      </time>
+      {entry.data.dateModified && (
+        <span class="text-muted-foreground">Updated <time datetime={(entry.data.dateModified as Date).toISOString()}>{blogMonthYear(entry.data.dateModified as Date)}</time></span>
+      )}
+      <span class="text-muted-foreground" aria-label={`${minutes} minute read`}>{minutes} min read</span>
+      <span class="text-muted-foreground">{blogLangLabel((entry.data.inLanguage as string) ?? "id")}</span>
+    </p>
+    <p class="mt-4 max-w-xl text-xl leading-snug">{entry.data.description}</p>
+    {(entry.data.tags?.length || (entry.data.keywords as string[])?.length) && (
+      <div class="mt-4 flex flex-wrap gap-2">
+        {(entry.data.tags ?? []).map((t: string) => (
+          <Badge class="rounded-none text-sm" href={`/blog/tag/${toAtsSlug(t)}`} variant="secondary">{t}</Badge>
+        ))}
+        {((entry.data.keywords as string[]) ?? []).filter((k: string) => !(entry.data.tags ?? []).includes(k)).map((k: string) => (
+          <Badge class="rounded-none text-sm" variant="outline">{k}</Badge>
+        ))}
+      </div>
+    )}
+    <p class="mt-6 flex flex-wrap items-center gap-3 text-lg">
+      <span class="flex flex-wrap items-center gap-2">
+        {authorNames.map((n, i) => (
+          <><a class="text-primary underline underline-offset-4" href="/about">{n}</a>{i < authorNames.length - 1 && <span aria-hidden="true">, </span>}</>
+        ))}
+      </span>
+      {entry.data.publisher && <span class="text-muted-foreground"> · Published by <a class="text-primary underline underline-offset-4" href="/about">Andriyansyah Nurrachman</a></span>}
+    </p>
+    {heroVariant && heroSrc ? (
+      <figure id="hero" class="mt-10 max-w-full min-w-0 scroll-mt-24" data-motion>
+        <Image
+          src={heroSrc}
+          width={640}
+          format="webp"
+          quality={55}
+          alt={heroIsLogo ? `${entry.data.title} logo` : entry.data.title}
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+          class="aspect-[21/9] w-full rounded-none object-cover object-center"
+        />
+        {(entry.data.heroCredit || entry.data.heroSource) ? (
+          <figcaption class="credit-line mt-2">{entry.data.heroCredit}{entry.data.heroSource && <> <a class="underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</figcaption>
+        ) : null}
+      </figure>
+    ) : (
+      <figure id="hero" class="mt-10 max-w-full min-w-0 scroll-mt-24" data-motion>
+        <div
+          class="flex aspect-[21/9] w-full min-w-0 max-w-full items-center justify-center rounded-none"
+          style="background-color: color-mix(in oklab, var(--color-primary) 16%, var(--color-muted)); color: var(--color-foreground);"
+          role="img"
+          aria-label={`${entry.data.title} placeholder`}
+        >
+          <span aria-hidden="true" class="font-display text-6xl font-bold">{heroInitials}</span>
+        </div>
+        {(entry.data.heroCredit || entry.data.heroSource) ? (
+          <figcaption class="credit-line mt-2">{entry.data.heroCredit}{entry.data.heroSource && <> <a class="underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</figcaption>
+        ) : null}
+      </figure>
+    )}
+    {galleryVariants.length > 0 && (
+      <div id="gallery" class="mt-10 scroll-mt-24" data-motion>
+        <Card.Root class="rounded-none">
+          <Card.Header>
+            <Card.Title class="text-lg"><h2 id="gallery-heading" class="text-lg font-medium">Gallery</h2></Card.Title>
+            <Card.Description>{galleryVariants.length} {galleryVariants.length === 1 ? "image" : "images"}.</Card.Description>
+          </Card.Header>
+          <Card.Content>
+            <div class="grid gap-6 md:grid-cols-2">
+              {gallerySrcs.map((src, i) => (
+                <figure>
+                  <Image
+                    src={src as never}
+                    width={640}
+                    format="webp"
+                    quality={55}
+                    alt={`${entry.data.title}, image ${i + 1}`}
+                    loading="lazy"
+                    decoding="async"
+                    class="aspect-[21/9] w-full object-cover"
+                  />
+                  {(entry.data.heroCredit || entry.data.heroSource) && <figcaption class="credit-line mt-2">{entry.data.heroCredit}{entry.data.heroSource && <> <a class="underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</figcaption>}
+                </figure>
+              ))}
+            </div>
+          </Card.Content>
+        </Card.Root>
+      </div>
+    )}
+    <div id="content" class="mt-10 scroll-mt-24" data-motion>
+      <Card.Root class="rounded-none">
+        <Card.Header>
+          <Card.Title class="text-lg"><h2 id="content-heading" class="text-lg font-medium">Content</h2></Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <div class="prose-case">
+            <Content />
+          </div>
+        </Card.Content>
+      </Card.Root>
+    </div>
+    {(newerPost || olderPost) && (
+      <nav aria-label="More posts" class="mt-10" data-motion>
+        <Separator class="mb-6" />
+        <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:justify-between">
+          {olderPost ? (
+            <Button rel="prev" variant="link" href={`/blog/${toAtsSlug(olderPost.id.split("/").pop() ?? olderPost.id)}`} class="rounded-none h-auto max-w-full min-w-0 justify-start p-0 text-left text-lg whitespace-normal underline sm:max-w-[46%]">
+              <span aria-hidden="true">← </span>{olderPost.data.title}
+            </Button>
+          ) : <span />}
+          {newerPost ? (
+            <Button rel="next" variant="link" href={`/blog/${toAtsSlug(newerPost.id.split("/").pop() ?? newerPost.id)}`} class="rounded-none h-auto max-w-full min-w-0 justify-start p-0 text-left text-lg whitespace-normal underline sm:max-w-[46%] sm:text-right">
+              {newerPost.data.title}<span aria-hidden="true"> →</span>
+            </Button>
+          ) : <span />}
+        </div>
+      </nav>
+    )}
+    {related.length > 0 && (
+      <div id="related" class="mt-10 scroll-mt-24" data-motion>
+        <Card.Root class="rounded-none">
+          <Card.Header>
+            <Card.Title class="text-lg"><h2 class="text-lg font-medium">Related posts</h2></Card.Title>
+            <Card.Description>{related.length} related.</Card.Description>
+          </Card.Header>
+          <Card.Content>
+            <ul class="flex flex-col gap-4">
+              {related.map((r) => {
+                const rThumb = ((r.data as { heroImage?: unknown }).heroImage ?? (r.data as { logo?: unknown }).logo ?? null) as never | null;
+                return (
+                  <li class="flex items-start gap-4">
+                    {rThumb ? (
+                      <Image
+                        src={rThumb}
+                        width={128}
+                        format="webp"
+                        quality={70}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        class="size-16 flex-none object-cover"
+                      />
+                    ) : (
+                      <ThumbPlaceholder name={r.data.title} />
+                    )}
+                    <div class="min-w-0">
+                      <Button variant="link" href={`/blog/${toAtsSlug(r.id.split("/").pop() ?? r.id)}`} class="rounded-none h-auto min-w-0 justify-start p-0 text-left whitespace-normal underline">
+                        {r.data.title}
+                      </Button>
+                      <p class="text-muted-foreground mt-1 text-base"><time datetime={r.data.pubDate.toISOString()}>{blogMonthYear(r.data.pubDate)}</time></p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card.Content>
+        </Card.Root>
+      </div>
+    )}
+    {(aboutEntries.length > 0 || aboutExpEntries.length > 0 || mentionEntries.length > 0 || employerMarks.length > 0) && (
+      <DetailRelations
+        description="Every linked metadata for this post."
+        groups={[
+          ...(mentionEntries.length > 0 ? [{ label: "Skills", items: (mentionEntries as { id: string; data: { name: string; heroImage?: unknown; logo?: unknown } }[]).map((m) => ({ title: m.data.name, href: `/skills/${toAtsSlug(m.id.split("/").pop() ?? m.id)}`, thumb: (m.data.heroImage ?? m.data.logo ?? null) as never | null, thumbName: m.data.name })) }] : []),
+          ...(aboutEntries.length > 0 ? [{ label: "Projects", items: (aboutEntries as { id: string; data: { title: string; heroImage?: unknown; logo?: unknown } }[]).map((a) => ({ title: a.data.title, href: `/projects/${toAtsSlug(a.id.split("/").pop() ?? a.id)}`, thumb: (a.data.heroImage ?? a.data.logo ?? null) as never | null, thumbName: a.data.title })) }] : []),
+          ...(aboutExpEntries.length > 0 ? [{ label: "Work Experience", items: (aboutExpEntries as { id: string; data: { roleName: string; heroImage?: unknown; logo?: unknown } }[]).map((e) => ({ title: e.data.roleName, href: `/experience/${toAtsSlug(e.id.split("/").pop() ?? e.id)}`, thumb: (e.data.heroImage ?? e.data.logo ?? null) as never | null, thumbName: e.data.roleName })) }] : []),
+          ...(employerMarks.length > 0 ? [{ label: "Organizations", items: employerMarks.map((m) => ({ title: m.name, href: m.href, thumb: (m.logo ?? null) as never | null, thumbName: m.name })) }] : []),
+        ]}
+      />
+    )}
+    <Section variant="ledger" label="Metadata">
+      <section id="metadata" class="scroll-mt-24">
+      <FactTable title="Metadata" caption="Every field on this post, with links to its relations.">
+        <Table.Row>
+          <Table.Cell class="w-36 align-top font-medium">Title</Table.Cell>
+          <Table.Cell>{entry.data.title}</Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Description</Table.Cell>
+          <Table.Cell>{entry.data.description}</Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Published</Table.Cell>
+          <Table.Cell><time datetime={entry.data.pubDate.toISOString()}>{blogMonthYear(entry.data.pubDate)}</time>{entry.data.dateModified && <> <span class="text-muted-foreground">· updated</span> <time datetime={(entry.data.dateModified as Date).toISOString()}>{blogMonthYear(entry.data.dateModified as Date)}</time></>} <span class="text-muted-foreground">· {minutes} min read</span></Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Language</Table.Cell>
+          <Table.Cell>{blogLangLabel((entry.data.inLanguage as string) ?? "id")}</Table.Cell>
+        </Table.Row>
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Author</Table.Cell>
+          <Table.Cell>
+            <span class="flex flex-wrap gap-x-2">
+              {authorNames.map((n, i) => (
+                <><a class="text-primary underline underline-offset-4" href="/about">{n}</a>{i < authorNames.length - 1 && <span aria-hidden="true">, </span>}</>
+              ))}
+            </span>
+          </Table.Cell>
+        </Table.Row>
+        {entry.data.publisher && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Publisher</Table.Cell>
+            <Table.Cell><a class="text-primary underline underline-offset-4" href="/about">Andriyansyah Nurrachman</a></Table.Cell>
+          </Table.Row>
+        )}
+        {(entry.data.tags ?? []).length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Tags</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {(entry.data.tags ?? []).map((t: string) => (
+                  <Badge class="rounded-none text-sm" href={`/blog/tag/${toAtsSlug(t)}`} variant="secondary">{t}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {((entry.data.keywords as string[]) ?? []).length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Keywords</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{((entry.data.keywords as string[]) ?? []).join(", ")}</span></Table.Cell>
+          </Table.Row>
+        )}
+        {(heroSrc || entry.data.heroCredit || entry.data.heroSource) && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Hero</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{heroIsLogo ? "Post logo" : (entry.data.heroCredit ?? "Illustrated")}</span>{entry.data.heroSource && <> <a class="text-primary underline underline-offset-4" href={entry.data.heroSource}>Source</a></>}</Table.Cell>
+          </Table.Row>
+        )}
+        {gallerySrcs.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Gallery</Table.Cell>
+            <Table.Cell><span class="text-muted-foreground">{gallerySrcs.length} {gallerySrcs.length === 1 ? "image" : "images"} below the hero</span></Table.Cell>
+          </Table.Row>
+        )}
+        {aboutEntries.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">About projects</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {(aboutEntries as { id: string; data: { title: string } }[]).map((a) => (
+                  <Badge class="rounded-none text-sm" href={`/projects/${toAtsSlug(a.id.split("/").pop() ?? a.id)}`} variant="outline">{a.data.title}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {aboutExpEntries.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Work Experience</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {(aboutExpEntries as { id: string; data: { roleName: string } }[]).map((e) => (
+                  <Badge class="rounded-none text-sm" href={`/experience/${toAtsSlug(e.id.split("/").pop() ?? e.id)}`} variant="outline">{e.data.roleName}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        {mentionEntries.length > 0 && (
+          <Table.Row>
+            <Table.Cell class="align-top font-medium">Mentions skills</Table.Cell>
+            <Table.Cell>
+              <span class="flex flex-wrap gap-2">
+                {(mentionEntries as { id: string; data: { name: string } }[]).map((m) => (
+                  <Badge class="rounded-none text-sm" href={`/skills/${toAtsSlug(m.id.split("/").pop() ?? m.id)}`} variant="outline">{m.data.name}</Badge>
+                ))}
+              </span>
+            </Table.Cell>
+          </Table.Row>
+        )}
+        <Table.Row>
+          <Table.Cell class="align-top font-medium">Canonical</Table.Cell>
+          <Table.Cell><span class="text-muted-foreground">/blog/{slug}</span></Table.Cell>
+        </Table.Row>
+      </FactTable>
+      </section>
+    </Section>
+  </article>
+</Layout>
+
+<style is:global>
+  /* Blog detail only: this stylesheet loads on blog detail pages alone, so
+     the cap touches case-note headings there and nowhere else. It keeps
+     them at two lines on phones; the two-line rule outranks the desktop
+     section size here. */
+  @media (max-width: 40rem) {
+    .prose-case h2 {
+      font-size: 1.375rem;
+      line-height: 1.1;
+    }
+  }
+</style>

@@ -1,0 +1,10 @@
+{
+  "name": "Center for Digital Innovation Studies (DIGITS) Unpad",
+  "alternateName": "DIGITS Unpad",
+  "description": "Center for Digital Innovation Studies (DIGITS), a research center of FEB Universitas Padjadjaran advancing the Sustaining the Diginnovation Ecosystem mission through research, consultation, and capacity building.",
+  "type": "Organization",
+  "url": "https://digits.feb.unpad.ac.id",
+  "sameAs": ["https://www.linkedin.com/company/digitsunpad"],
+  "parentOrganization": "feb-unpad",
+  "department": "Research Center"
+}

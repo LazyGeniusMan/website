@@ -1,0 +1,188 @@
+---
+import { Image, getImage } from "astro:assets";
+import Section from "../components/Section.astro";
+import * as Alert from "$lib/components/ui/alert/index.js";
+import { Button } from "$lib/components/ui/button/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
+import TocNav from "$lib/components/islands/TocNav.svelte";
+import Layout from "../layouts/Layout.astro";
+import { PERSON_ID, WEBSITE_ID, breadcrumbNode, heroImageNode, imageIdOf, personRefNode, resolveSiteUrl, toGraph, webpageId } from "../lib/jsonld";
+import type { ContactPage } from "schema-dts";
+import ContactForm from "../components/islands/ContactForm.svelte";
+import GithubIcon from "../components/icons/GithubIcon.svelte";
+import LinkedinIcon from "../components/icons/LinkedinIcon.svelte";
+import InstagramIcon from "../components/icons/InstagramIcon.svelte";
+import Mail from "@lucide/svelte/icons/mail";
+import MapPin from "@lucide/svelte/icons/map-pin";
+import Icon from "../components/Icon.svelte";
+import { creditFor } from "../data/credits";
+import portrait from "../assets/portrait.png";
+
+const email = "website@yansyah.my.id";
+const mailto = `mailto:${email}?subject=Hello%20Yansyah`;
+const siteUrl = resolveSiteUrl(Astro.site);
+
+const contactPortraitNode = heroImageNode({
+  heroImage: await getImage({ src: portrait, width: 800, quality: 70 }),
+  pagePath: "/contact",
+});
+const contactPortraitId = imageIdOf(contactPortraitNode);
+const graphNodes = toGraph([
+  {
+    "@type": "ContactPage",
+    "@id": webpageId("/contact"),
+    url: `${siteUrl}/contact`,
+    name: "Contact",
+    description: "One inbox for process, systems, and automation work. Replies within days.",
+    author: { "@id": PERSON_ID },
+    isPartOf: { "@id": WEBSITE_ID },
+    ...(contactPortraitId ? { primaryImageOfPage: { "@id": contactPortraitId } } : {}),
+  } satisfies ContactPage,
+  personRefNode(siteUrl),
+  breadcrumbNode("/contact", [
+    { name: "Home", item: "/" },
+    { name: "Contact", item: "/contact" },
+  ]),
+  ...(contactPortraitNode ? [contactPortraitNode] : []),
+]);
+---
+
+<Layout
+  title="Contact"
+  description="One inbox for process, systems, and automation work. Replies within days."
+  graphNodes={graphNodes}
+  breadcrumb={[{ name: "Home", item: "/" }, { name: "Contact" }]}
+>
+  <div slot="secondary">
+    <TocNav
+      client:visible
+      items={[
+        { id: "contact-heading", label: "Contact" },
+        { id: "write-heading", label: "Write directly" },
+      ]}
+    />
+    <noscript>
+      <p class="mt-8 text-lg font-medium">Write directly</p>
+      <p class="mt-2 text-base text-muted-foreground">
+        The composer needs JavaScript and a mail app. Email
+        <a class="text-primary underline underline-offset-4" href={mailto}>{email}</a>
+        directly instead.
+      </p>
+    </noscript>
+  </div>
+  <Section variant="sheet" labelledby="contact-heading">
+    <h1 id="contact-heading" class="display scroll-mt-24 text-[clamp(2.5rem,1.2rem+5vw,5.5rem)]">Contact</h1>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">
+      One inbox for process, systems, and automation work. Replies within days.
+    </p>
+    <p class="mt-6 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-3">
+      <Button href={mailto} class="h-auto max-w-full min-h-11 rounded-none px-5 text-lg whitespace-normal">
+        Compose email
+        <Icon of={Mail} data-icon="inline-end" aria-hidden="true" />
+      </Button>
+      <Button variant="link" href="#write-heading" class="rounded-none max-w-full min-h-11 px-0 text-lg whitespace-normal underline">Or write below</Button>
+      <span class="text-base tabular-nums">Replies within days · Bandung, Indonesia</span>
+    </p>
+    <div class="mt-10 grid min-w-0 items-start gap-10 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]" data-motion>
+      <figure class="min-w-0">
+        <Image
+          src={portrait}
+          width={800}
+          format="webp"
+          quality={70}
+          alt="Portrait of Andriyansyah Nurrachman"
+          loading="eager"
+          decoding="async"
+          class="aspect-square w-full max-w-md object-cover"
+        />
+        <figcaption class="credit-line mt-2">
+          {creditFor("portrait").caption} {creditFor("portrait").credit}
+        </figcaption>
+      </figure>
+      <Card.Root data-motion class="rounded-none">
+        <Card.Header class="rounded-none">
+          <Card.Title><h2 class="text-2xl font-medium">Direct channels</h2></Card.Title>
+          <Card.Description>Every way to reach Andriyansyah Nurrachman.</Card.Description>
+        </Card.Header>
+        <Card.Content class="rounded-none">
+          <Table.Root class="tabular-nums">
+            <Table.Body>
+              <Table.Row>
+                <Table.Cell class="w-32 font-medium">Location</Table.Cell>
+                <Table.Cell>
+                  <span class="inline-flex items-center gap-2">
+                    <Icon of={MapPin} data-icon="inline-start" aria-hidden="true" />Bandung, Indonesia
+                  </span>
+                </Table.Cell>
+              </Table.Row>
+              <Table.Row>
+                <Table.Cell class="font-medium">Email</Table.Cell>
+                <Table.Cell>
+                  <span class="inline-flex items-center gap-2">
+                    <Icon of={Mail} data-icon="inline-start" aria-hidden="true" />
+                    <a class="text-primary break-all underline-offset-4 hover:underline" href={mailto}>{email}</a>
+                  </span>
+                </Table.Cell>
+              </Table.Row>
+              <Table.Row>
+                <Table.Cell class="font-medium">Profiles</Table.Cell>
+                <Table.Cell>
+                  <span class="flex flex-wrap gap-x-6 gap-y-2">
+                    <a class="inline-flex min-h-11 items-center gap-2 underline-offset-4 hover:underline" href="/go/github"><Icon of={GithubIcon} data-icon="inline-start" aria-hidden="true" />GitHub</a>
+                    <a class="inline-flex min-h-11 items-center gap-2 underline-offset-4 hover:underline" href="/go/linkedin"><Icon of={LinkedinIcon} data-icon="inline-start" aria-hidden="true" />LinkedIn</a>
+                  </span>
+                </Table.Cell>
+              </Table.Row>
+            </Table.Body>
+          </Table.Root>
+        </Card.Content>
+      </Card.Root>
+    </div>
+  </Section>
+  <Section variant="ledger" label="Write directly">
+    <div class="grid min-w-0 items-start gap-10 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+      <div class="max-w-2xl min-w-0">
+        <Card.Root data-motion class="rounded-none min-w-0">
+        <Card.Header class="rounded-none">
+          <Card.Title><h2 id="write-heading" class="scroll-mt-24 text-2xl font-medium">Write directly</h2></Card.Title>
+          <Card.Description>
+            Replies within days. The composer opens your mail app with the subject filled in.
+          </Card.Description>
+        </Card.Header>
+        <Card.Content class="rounded-none">
+          <ContactForm to={email} client:visible />
+          <noscript>
+            <Alert.Root class="rounded-none mt-4">
+              <Alert.Title>JavaScript is off</Alert.Title>
+              <Alert.Description>
+                Email me directly at
+                <a class="underline underline-offset-4" href={mailto}>
+                  {email}
+                </a>.
+                The composer needs a browser mail app to fill in the subject.
+              </Alert.Description>
+            </Alert.Root>
+          </noscript>
+        </Card.Content>
+        <Card.Footer class="rounded-none">
+          <p class="text-base text-foreground">The form only composes an email. Nothing leaves your device until you send it.</p>
+        </Card.Footer>
+        </Card.Root>
+      </div>
+      <Card.Root data-motion class="rounded-none">
+        <Card.Header class="rounded-none">
+          <Card.Title><h3 class="text-2xl font-medium">What to include</h3></Card.Title>
+          <Card.Description>Replies within days from Bandung, Indonesia.</Card.Description>
+        </Card.Header>
+        <Card.Content class="rounded-none">
+          <ul class="flex list-none flex-col gap-3 p-0 text-base leading-relaxed">
+            <li>The process or system and what hurts.</li>
+            <li>Links to the repo, docs, or screenshots.</li>
+            <li>Timeline and how to reach you back.</li>
+          </ul>
+        </Card.Content>
+      </Card.Root>
+    </div>
+  </Section>
+</Layout>

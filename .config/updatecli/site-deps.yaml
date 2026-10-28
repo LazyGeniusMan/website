@@ -1,0 +1,71 @@
+---
+name: "site: update catalog pins"
+labels:
+  dependencies: site
+sources:
+  site-astro:
+    name: track astro 7.x for pnpm catalog
+    kind: npm
+    spec:
+      name: "astro"
+      versionfilter:
+        kind: semver
+        pattern: "7.x"
+  site-svelte:
+    name: track svelte 5.x for pnpm catalog
+    kind: npm
+    spec:
+      name: "svelte"
+      versionfilter:
+        kind: semver
+        pattern: "5.x"
+  site-vite-plus:
+    name: track vite-plus 1.x for pnpm catalog
+    kind: npm
+    spec:
+      name: "vite-plus"
+      versionfilter:
+        kind: semver
+        pattern: "1.x"
+  site-cf:
+    name: track cf 1.x (beta-only on npm) for pnpm catalog
+    kind: shell
+    spec:
+      command: mise latest "npm:cf"
+targets:
+  astroPin:
+    name: "bump astro catalog pin"
+    kind: file
+    spec:
+      files:
+        - pnpm-workspace.yaml
+      matchpattern: '  astro: \^7[0-9.]*'
+      replacepattern: '  astro: ^{{ source "site-astro" }}'
+    sourceid: site-astro
+  sveltePin:
+    name: "bump svelte catalog pin"
+    kind: file
+    spec:
+      files:
+        - pnpm-workspace.yaml
+      matchpattern: '  svelte: \^5[0-9.]*'
+      replacepattern: '  svelte: ^{{ source "site-svelte" }}'
+    sourceid: site-svelte
+  vitePlusPin:
+    name: "bump vite-plus catalog pin"
+    kind: file
+    spec:
+      files:
+        - pnpm-workspace.yaml
+      matchpattern: "  vite-plus: [0-9.]*"
+      replacepattern: '  vite-plus: {{ source "site-vite-plus" }}'
+    sourceid: site-vite-plus
+  cfPin:
+    name: "bump cf catalog pin"
+    kind: file
+    spec:
+      files:
+        - pnpm-workspace.yaml
+      matchpattern: "  cf: [0-9A-Za-z.+_-]*"
+      replacepattern: '  cf: {{ source "site-cf" }}'
+    sourceid: site-cf

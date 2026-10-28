@@ -8,3 +8,9 @@ vault = "dev"
 [secrets]
 "KEENABLE_API_KEY" = { provider = "protonpass", value = "website/keenable-api-key" }
 "FNOX_GITHUB_TOKEN" = { provider = "protonpass", value = "website/github-pat" }
+"RCLONE_CONFIG_PROTON_USERNAME" = { provider = "protonpass", value = "website/protondrive-username" }
+"RCLONE_CONFIG_PROTON_PASSWORD" = { provider = "protonpass", value = "website/protondrive-password-obscured" }
+"RCLONE_CONFIG_PROTON_OTP_SECRET_KEY" = { provider = "protonpass", value = "website/protondrive-totp-seed-obscured" }
+"RCLONE_CONFIG_R2_ACCESS_KEY_ID" = { provider = "protonpass", value = "website/r2-access-key-id" }
+"RCLONE_CONFIG_R2_SECRET_ACCESS_KEY" = { provider = "protonpass", value = "website/r2-secret-access-key" }
+"RCLONE_CONFIG_R2_ENDPOINT" = { provider = "protonpass", value = "website/r2-endpoint" }

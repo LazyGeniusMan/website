@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "algorithm": "sha256",
+  "remote": "r2:websites/personal-site/assets",
+  "generatedAt": "2026-10-20T06:36:12.870Z",
+  "commit": "4b6bfc2",
+  "assets": [
+    {
+      "path": "cert-efset.png",
+      "remote_key": "v1/9c3e9ff5152c88609397f3bdca34322041b35b9147805c58bc45236509618b9d.png",
+      "size": 230319,
+      "sha256": "9c3e9ff5152c88609397f3bdca34322041b35b9147805c58bc45236509618b9d",
+      "mime": "image/png",
+      "width": 940,
+      "height": 895
+    },
+    {
+      "path": "cert-gits-internship.png",
+      "remote_key": "v1/d3aa81dbdf0d80612cb5b91aee50fd18721e6a6e4bd3e4a331b655ae30c0fdd5.png",
+      "size": 258385,
+      "sha256": "d3aa81dbdf0d80612cb5b91aee50fd18721e6a6e4bd3e4a331b655ae30c0fdd5",
+      "mime": "image/png",
+      "width": 1123,
+      "height": 794
+    },
+    {
+      "path": "cert-rutgers-ai-audit.png",
+      "remote_key": "v1/24e02ce17ade47d1477ec40c15beb63b45de9f39e9bc552589f2064e9177e69e.png",
+      "size": 55246,
+      "sha256": "24e02ce17ade47d1477ec40c15beb63b45de9f39e9bc552589f2064e9177e69e",
+      "mime": "image/png",
+      "width": 1056,
+      "height": 816
+    },
+    {
+      "path": "cert-rutgers-automation.png",
+      "remote_key": "v1/d4a0f4c0429f283b0dc89bb872f9b84173dde8159dc229aa2646e7d89d739adb.png",
+      "size": 55308,
+      "sha256": "d4a0f4c0429f283b0dc89bb872f9b84173dde8159dc229aa2646e7d89d739adb",
+      "mime": "image/png",
+      "width": 1056,
+      "height": 816
+    },
+    {
+      "path": "cert-rutgers-mining.png",
+      "remote_key": "v1/653949485f91c9fa4c267d56f19a658a1d0954b871567e89c3a78018816fe62a.png",
+      "size": 55663,
+      "sha256": "653949485f91c9fa4c267d56f19a658a1d0954b871567e89c3a78018816fe62a",
+      "mime": "image/png",
+      "width": 1056,
+      "height": 816
+    },
+    {
+      "path": "cert-rutgers-preprocessing.png",
+      "remote_key": "v1/23825646ffb2cab0946465dbf928f9856b9367f5e09c5c464d8e7f5523682ffd.png",
+      "size": 56106,
+      "sha256": "23825646ffb2cab0946465dbf928f9856b9367f5e09c5c464d8e7f5523682ffd",
+      "mime": "image/png",
+      "width": 1056,
+      "height": 816
+    },
+    {
+      "path": "cert-teps.png",
+      "remote_key": "v1/6f56585974d9560dcd59d7eb7f76d3c269cee32ab5839736b2f7b74727a7acb1.png",
+      "size": 315231,
+      "sha256": "6f56585974d9560dcd59d7eb7f76d3c269cee32ab5839736b2f7b74727a7acb1",
+      "mime": "image/png",
+      "width": 1123,
+      "height": 794
+    },
+
+    {
+      "path": "portrait.png",
+      "remote_key": "v1/37de2ea1c5866f9c3704e9efc7be28995173958c725c1c91c98571a85fd0ba6d.png",
+      "size": 5638244,
+      "sha256": "37de2ea1c5866f9c3704e9efc7be28995173958c725c1c91c98571a85fd0ba6d",
+      "mime": "image/png",
+      "width": 2268,
+      "height": 3024
+    },
+    {
+      "path": "work-digits-2020.png",
+      "remote_key": "v1/523448154b82589e0ae8e145d6903142f3e1976a64062d82ebb5c030565ea1c5.png",
+      "size": 3333833,
+      "sha256": "523448154b82589e0ae8e145d6903142f3e1976a64062d82ebb5c030565ea1c5",
+      "mime": "image/png",
+      "width": 1903,
+      "height": 3500
+    },
+    {
+      "path": "work-digits-2022.png",
+      "remote_key": "v1/d55eef87778b3be98657ad9089425efff28f22895212b73fcbfdae6324855c26.png",
+      "size": 1522141,
+      "sha256": "d55eef87778b3be98657ad9089425efff28f22895212b73fcbfdae6324855c26",
+      "mime": "image/png",
+      "width": 1903,
+      "height": 3146
+    },
+    {
+      "path": "work-ojs-2021.png",
+      "remote_key": "v1/6ee8e31fcc0e813176899f0739523790e3dc86465442813dba7d812574d40eff.png",
+      "size": 492098,
+      "sha256": "6ee8e31fcc0e813176899f0739523790e3dc86465442813dba7d812574d40eff",
+      "mime": "image/png",
+      "width": 1903,
+      "height": 2476
+    },
+    {
+      "path": "work-sss-2021.png",
+      "remote_key": "v1/ac362cfe1051c6881a1d0ba33639dcca5ff89ee4b8679bf4273c1e538b8f5ced.png",
+      "size": 3589725,
+      "sha256": "ac362cfe1051c6881a1d0ba33639dcca5ff89ee4b8679bf4273c1e538b8f5ced",
+      "mime": "image/png",
+      "width": 1903,
+      "height": 2926
+    }
+  ]
+}

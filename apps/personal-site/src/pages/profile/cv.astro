@@ -1,0 +1,14 @@
+---
+import GoRedirect from "../../components/GoRedirect.astro";
+
+const target = "/cv";
+const canonical = "https://yansyah.my.id/cv";
+const label = "CV";
+const blurb = "This page has moved to the plain-text CV.";
+---
+
+<GoRedirect target={target} canonical={canonical} label={label} blurb={blurb}>
+  <script is:inline>
+    window.location.replace("/cv");
+  </script>
+</GoRedirect>

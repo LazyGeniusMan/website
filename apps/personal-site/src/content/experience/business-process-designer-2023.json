@@ -1,0 +1,51 @@
+{
+  "roleName": "Business Process Designer",
+  "description": "Led the Business Process Designer team, translating complex client problems into comprehensive and actionable requirements.",
+  "startDate": "2023-06",
+  "endDate": "2025-06",
+  "worksFor": "navcore",
+  "skills": [
+    "business-process-management",
+    "business-process-improvement",
+    "information-systems",
+    "bpmn",
+    "dmn",
+    "sql",
+    "python"
+  ],
+  "jobLocation": "Bandung, Indonesia",
+  "employmentType": "FULL_TIME",
+  "relatedProjects": [
+    "treats",
+    "navcore-crowdfunding-2024",
+    "navcore-banking-requirements-2024",
+    "navcore-money-changer-pos-2025",
+    "makers-b2b-tour-coa-2023"
+  ],
+  "occupation": {
+    "name": "Business Process Designer",
+    "description": "Operating-model and process design for marketplace, tourism, crowdfunding, banking, and food-delivery domains.",
+    "responsibilities": [
+      "Led the Business Process Designer team, translating complex client problems into comprehensive and actionable requirements.",
+      "Guided the UI/UX team, ensuring all design solutions and user experiences aligned with defined business requirements.",
+      "Collaborated with developers to ensure seamless integration of applications and business processes with the Enterprise Resource Planning (ERP) system.",
+      "Implemented business processes efficiently by utilizing low-code tools to combine Business Process Model and Notation (BPMN), Decision Model and Notation (DMN), and REST API.",
+      "Designed an operating model based on the business models of the marketplace and tourism industries.",
+      "Developed functional requirements and accounting treatments for a Crowdfunding platform.",
+      "Created functional requirements for Core Banking and Loan Origination Systems.",
+      "Developed functional requirements, accounting treatments and wireframe for a money changer point of sales.",
+      "Facilitated the alignment of B2B tour and travel applications with business processes and requirements through the creation and rigorous testing of test cases.",
+      "Automated repetitive tasks using Python scripts."
+    ],
+    "skillsNote": "BPMN, DMN, REST API, operating models, accounting treatments, test cases, Python automation.",
+    "skills": [
+      "business-process-management",
+      "business-process-improvement",
+      "information-systems",
+      "bpmn",
+      "dmn",
+      "sql",
+      "python"
+    ]
+  }
+}

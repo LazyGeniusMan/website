@@ -1,0 +1,32 @@
+{
+  "roleName": "Research Assistant",
+  "description": "Involved on various research and training programs.",
+  "startDate": "2020-07",
+  "endDate": "2022-12",
+  "worksFor": "digits",
+  "skills": ["problem-solving", "systematic-thinking", "analytical-skill", "critical-thinking"],
+  "jobLocation": "Bandung, Indonesia",
+  "employmentType": "PART_TIME",
+  "relatedProjects": [
+    "website-for-digits-unpad-2020",
+    "website-for-digits-unpad-2022",
+    "open-journal-systems-2021"
+  ],
+  "heroImage": "../../assets/work-digits-2022.png",
+  "images": ["../../assets/work-digits-2020.png", "../../assets/work-ojs-2021.png"],
+  "occupation": {
+    "name": "Research Assistant",
+    "description": "Research support, OJS administration, and institutional website migration and redesign.",
+    "responsibilities": [
+      "Utilized Grounded Theory methodology to process and analyze lecturers' research data concerning blockchain's capabilities and challenges within the Accounting and Assurance domain.",
+      "Developed survey questionnaires, visualized survey data using Google Data Studio, and analyzed data related to a Massive Open Online Course (MOOC)-based digital entrepreneurship curriculum.",
+      "Facilitated respondent participation in a research survey regarding standard prices for design services and remuneration for the design profession in Indonesia.",
+      "Contributed as a committee member for organizing webinars and training events.",
+      "Set up, designed, and administered the Open Journal System (OJS) for the Journal of Digital Innovation Studies (DIGITS Journal).",
+      "Provided supervision and guidance to a website administration intern.",
+      "Migrated, redesigned, and maintained institutional websites."
+    ],
+    "skillsNote": "Grounded Theory, survey design, Google Data Studio, OJS administration, WordPress migration.",
+    "skills": ["problem-solving", "systematic-thinking", "analytical-skill", "critical-thinking"]
+  }
+}

@@ -1,0 +1,185 @@
+---
+import { getCollection } from "astro:content";
+import { Image, getImage } from "astro:assets";
+import Layout from "../../layouts/Layout.astro";
+import Section from "../../components/Section.astro";
+import ThumbPlaceholder from "../../components/ThumbPlaceholder.astro";
+import { abs, breadcrumbNode, collectionPageNode, credentialNode, organizationNode, resolveSiteUrl, toGraph } from "../../lib/jsonld";
+import Filter from "../../components/islands/Filter.svelte";
+import { credentialDisplay, toAtsSlug } from "../../lib/collections";
+import { CERTIFICATIONS_PAGE_SIZE, CERTIFICATIONS_PATH, certMonthYear, certSlugOf, getCertThumbSources, getCertificationsList } from "../../lib/lists/certifications";
+
+const { credsAll, groups, items, aboutOf, skillNameByStem } = await getCertificationsList();
+const orgsAll = await getCollection("organizations");
+const orgByStem = new Map(orgsAll.map((o) => [(o.id.split("/").pop() ?? o.id), o]));
+const stemOf = (ref: unknown): string => {
+  const raw = typeof ref === "string" ? ref : (ref as { id: string }).id;
+  return raw.split("/").pop() ?? raw;
+};
+
+const thumbSources = await getCertThumbSources(credsAll);
+const itemsWithThumbs = await Promise.all(
+  items.map(async (item) => {
+    const source = thumbSources.get(item.id);
+    if (!source) return item;
+    const thumb = await getImage({ src: source.src, width: 128, format: "webp", quality: 70 });
+    return { ...item, thumbSrc: thumb.src, thumbAlt: source.alt };
+  }),
+);
+
+const dateValues = items.flatMap((i) => [i.date, i.dateEnd].filter((d): d is string => !!d)).sort();
+const dateMin = dateValues[0] ?? null;
+const dateMax = dateValues[dateValues.length - 1] ?? null;
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const graphNodes = toGraph([
+  collectionPageNode({
+    path: "/certifications",
+    siteUrl,
+    name: "Certifications",
+    description: "Certifications: issuers, issue dates, credential identifiers, and verification links.",
+    items: credsAll.map((c) => ({ name: c.data.name, url: abs(`/certifications/${certSlugOf(c)}`) })),
+  }),
+
+
+
+  ...credsAll.map((c) => {
+    const rec = c.data.recognizedBy as unknown as { id: string } | string | undefined;
+    const aboutStems = ((c.data.about ?? []) as unknown[]).map((r) =>
+      stemOf(r as { id: string }),
+    );
+    return credentialNode({
+      slug: certSlugOf(c),
+      siteUrl,
+      name: c.data.name,
+      ...(c.data.description ? { description: c.data.description } : {}),
+      ...(c.data.credentialCategory ? { credentialCategory: c.data.credentialCategory } : {}),
+      ...(c.data.educationalLevel ? { educationalLevel: c.data.educationalLevel } : {}),
+      ...(c.data.credentialId ? { identifier: c.data.credentialId } : {}),
+      ...(c.data.dateCreated ? { dateCreated: c.data.dateCreated as Date } : {}),
+      ...(c.data.validUntil ? { expires: c.data.validUntil as Date } : {}),
+      ...(c.data.url ? { url: c.data.url } : {}),
+      ...(rec ? { recognizedByStem: stemOf(rec) } : {}),
+      ...(aboutStems.length ? { aboutStems } : {}),
+    });
+  }),
+  ...[...new Map(
+    credsAll.flatMap((c) => {
+      const rec = c.data.recognizedBy as unknown as { id: string } | string | undefined;
+      if (!rec) return [];
+      const stem = stemOf(rec);
+      const org = orgByStem.get(stem);
+      if (!org) throw new Error(`certifications index: dangling recognizedBy ref ${stem}`);
+      return [[stem, org] as const];
+    }),
+  ).values()].map((org) =>
+    organizationNode({
+      slug: org.id.split("/").pop() ?? org.id,
+      siteUrl,
+      type: org.data.type,
+      name: org.data.name,
+      ...(org.data.url ? { url: org.data.url } : {}),
+      ...(org.data.logo ? { logo: org.data.logo } : {}),
+    }),
+  ),
+  breadcrumbNode("/certifications", [
+    { name: "Home", item: "/" },
+    { name: "Certifications", item: "/certifications" },
+  ]),
+]);
+---
+
+<Layout title="Certifications" description="Certifications: issuers, issue dates, credential identifiers, and verification links." graphNodes={graphNodes}>
+  <Section variant="sheet" labelledby="certs-heading">
+    <h1 id="certs-heading" class="display text-[clamp(2.5rem,1.2rem+5vw,5.5rem)]">Certifications</h1>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">
+      {credsAll.length} certifications: issuers, issue dates, credential identifiers, and verification links.
+    </p>
+  </Section>
+
+  <section id="credentials" class="page-margin mt-10 scroll-mt-24 md:mt-14" aria-labelledby="credentials-heading" data-motion>
+    <h2 id="credentials-heading" class="sr-only">Certifications</h2>
+    <div class="mt-4">
+      <Filter groups={groups} items={itemsWithThumbs} pageSize={CERTIFICATIONS_PAGE_SIZE} label="Filter certifications" dateLabel="Issued date" dateMin={dateMin} dateMax={dateMax} view="results" client:visible />
+    </div>
+    <noscript>
+      <p class="mt-10 text-lg text-muted-foreground">
+        Filtering needs JavaScript. Showing all {credsAll.length} certifications.
+      </p>
+      <ol class="mt-6 grid min-w-0 max-w-full grid-cols-[repeat(1,minmax(0,1fr))] gap-4 [overflow-wrap:anywhere] lg:grid-cols-[repeat(2,minmax(0,1fr))]">
+        {credsAll.map((c) => {
+          const rec = c.data.recognizedBy as unknown as { id: string } | string | undefined;
+          const issuer = rec ? orgByStem.get(stemOf(rec)) : undefined;
+          const about = aboutOf(c).slice(0, 3);
+          const source = thumbSources.get(c.id);
+          return (
+            <li class="w-full min-w-0 max-w-full">
+              <div class="flex min-w-0 max-w-full flex-wrap items-start gap-4 [overflow-wrap:anywhere]">
+                {source ? (
+                  <Image
+                    src={source.src}
+                    width={128}
+                    format="webp"
+                    quality={70}
+                    alt={source.alt}
+                    loading="lazy"
+                    decoding="async"
+                    class="size-16 flex-none object-cover"
+                  />
+                ) : (
+                  <ThumbPlaceholder name={c.data.name} />
+                )}
+                <div class="min-w-0 max-w-full flex-1">
+              <h3 class="text-xl font-medium">
+                <a class="hover:text-primary hover:underline underline-offset-4" href={`/certifications/${certSlugOf(c)}`}>
+                  {c.data.name}
+                </a>
+              </h3>
+              {c.data.description && <p class="mt-2 max-w-xl">{c.data.description}</p>}
+              <p class="mt-1 text-lg">
+                {credentialDisplay(c.data.credentialCategory)}
+                {issuer && <> · Recognized by {issuer.data.name}</>}
+                {c.data.dateCreated && <> · <time datetime={(c.data.dateCreated as Date).toISOString()}>{certMonthYear(c.data.dateCreated as Date)}</time></>}
+                {c.data.credentialId && <> · ID {c.data.credentialId}</>}
+                {c.data.url && (
+                  <> · <a class="underline underline-offset-4" href={c.data.url}>Verify</a></>
+                )}
+              </p>
+              {about.length > 0 && (
+                <p class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-base">
+                  {about.map((s) => (
+                    <a class="text-primary underline underline-offset-4" href={`/skills/${toAtsSlug(s)}`}>{skillNameByStem.get(s) ?? s}</a>
+                  ))}
+                </p>
+              )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </noscript>
+  </section>
+
+  <div slot="secondary">
+    <Filter groups={groups} pageSize={CERTIFICATIONS_PAGE_SIZE} label="Filter certifications" dateLabel="Issued date" dateMin={dateMin} dateMax={dateMax} view="controls" client:only="svelte" />
+    <noscript>
+      <p class="text-lg font-medium">Filters</p>
+      <p class="mt-2 text-base text-muted-foreground">
+        Filtering needs JavaScript. Browse by connection below.
+      </p>
+      {groups.map((g) => (
+        <div class="mt-6">
+          <p class="text-base font-medium">{g.label}</p>
+          <ul class="mt-2 flex flex-col gap-2">
+            {g.options.map((o) => (
+              <li>
+                <a class="text-primary underline underline-offset-4" href={`${CERTIFICATIONS_PATH}?${g.key}=${o.id}`}>{o.label}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </noscript>
+  </div>
+</Layout>

@@ -1,0 +1,9 @@
+{
+  "name": "Go",
+  "alternateName": "Golang",
+  "description": "Go programming language",
+  "proficiencyLevel": "advanced",
+  "category": "Technical",
+  "url": "https://go.dev/",
+  "sameAs": ["https://en.wikipedia.org/wiki/Go_(programming_language)"]
+}

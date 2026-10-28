@@ -1,0 +1,8 @@
+{
+  "name": "Office Suite",
+  "alternateName": "Microsoft Office, Google Workspace",
+  "description": "Microsoft Office and Google Workspace for documentation and analysis.",
+  "proficiencyLevel": "advanced",
+  "category": "Tools",
+  "sameAs": ["https://www.microsoft.com/en-us/microsoft-365", "https://workspace.google.com/"]
+}

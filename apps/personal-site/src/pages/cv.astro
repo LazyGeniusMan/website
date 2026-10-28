@@ -1,0 +1,507 @@
+---
+import JsonLd from "../components/JsonLd.astro";
+import {
+  PERSON_ID,
+  WEBSITE_ID,
+  personFullNode,
+  resolveSiteUrl,
+  toSiteMonthIso,
+  webpageId,
+  breadcrumbId,
+  websiteNode,
+  breadcrumbNode,
+  toGraph,
+} from "../lib/jsonld";
+import type { ProfilePage } from "schema-dts";
+import { getResume, orgAncestorNames, categoryLabel, roleFallback, proficiencyLabel } from "../lib/collections";
+import { getPersonRelations } from "../lib/lists/person";
+import { responsibilitiesToBullets } from "../lib/schema/base";
+import { getCollection } from "astro:content";
+
+const resume = await getResume();
+const personFilterIndex = (await getPersonRelations()).index;
+const filterOf = (kind: string, stem: string) =>
+  personFilterIndex.get(`${kind}:${stem}`) ?? {
+    facets: { org: [], skill: [], exp: [], project: [] },
+    text: "",
+  };
+const stemOf = (ref: unknown): string => {
+  const raw = typeof ref === "string" ? ref : (ref as { id: string }).id;
+  return raw.split("/").pop() ?? raw;
+};
+const orgsAll = await getCollection("organizations");
+const orgById = new Map(orgsAll.map((o) => [o.id, o]));
+const lookupOrg = (ref: unknown) => {
+  if (!ref) return undefined;
+  const raw = typeof ref === "string" ? ref : (ref as { id: string }).id;
+  const stem = raw.split("/").pop() ?? raw;
+  return orgById.get(stem) ?? orgById.get(raw);
+};
+
+const site = resolveSiteUrl(Astro.site);
+const pageUrl = `${site}/cv`;
+
+const fmtMonthYear = (ym: string) => {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1, 1));
+
+  return d.toLocaleString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+};
+const fmtRange = (s: string, e?: string) => `${fmtMonthYear(s)} – ${e ? fmtMonthYear(e) : "Present"}`;
+
+const textOf = (parts: (string | undefined | null)[]): string =>
+  parts.filter((p): p is string => !!p).join(" ").toLowerCase();
+const ymDay = (ym?: string): string => {
+  if (!ym) return "";
+  if (/^\d{4}$/.test(ym)) return `${ym}-01-01`;
+  const m = ym.match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-01` : "";
+};
+const dayOf = (d: unknown): string =>
+  d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : "";
+const orgStemAttr = (ref: unknown): string => {
+  const org = lookupOrg(ref);
+  return org ? (org.id.split("/").pop() ?? org.id) : "";
+};
+
+const person = resume.person;
+const LANGUAGE_NAMES: Record<string, string> = { id: "Indonesian", en: "English" };
+const personAddress = person.data.address as { addressLocality?: string; addressCountry?: string } | undefined;
+const personPlace = [personAddress?.addressLocality, personAddress?.addressCountry === "ID" ? "Indonesia" : personAddress?.addressCountry].filter(Boolean).join(", ") || "Bandung, Indonesia";
+const alumniNames = ((person.data.alumniOf as unknown[]) ?? []).map((r) => {
+  const raw = typeof r === "string" ? r : (r as { id: string }).id;
+  const stem = raw.split("/").pop() ?? raw;
+  return orgById.get(stem)?.data.name ?? stem;
+});
+const skillsByCategory = new Map<string, typeof resume.skills>();
+for (const s of resume.skills) {
+  const cat = categoryLabel(s.data.category);
+  if (!skillsByCategory.has(cat)) skillsByCategory.set(cat, []);
+  skillsByCategory.get(cat)!.push(s);
+}
+
+
+
+const contentInstants = [
+  ...resume.projects.flatMap((p) => [p.data.pubDate, p.data.dateModified, p.data.dateCreated]),
+  ...resume.credentials.flatMap((c) => [c.data.dateCreated, c.data.validUntil]),
+]
+  .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+  .map((d) => d.getTime());
+const maxContentDate = contentInstants.length ? new Date(Math.max(...contentInstants)) : null;
+const graphNodes = toGraph([
+
+
+
+  personFullNode({
+    name: person.data.name,
+    jobTitle: person.data.jobTitle,
+    description: person.data.description,
+    url: person.data.url,
+    email: person.data.email,
+    sameAs: (person.data.sameAs as string[]).filter((u) => u.includes("linkedin.com")),
+    knowsLanguage: person.data.knowsLanguage,
+    knowsAboutIds: resume.skills.map((s) => stemOf(s.id)),
+    occupationIds: resume.experience.map((e) => stemOf(e.id)),
+    alumniIds: (person.data.alumniOf as unknown[]).map(stemOf),
+    credentialIds: resume.credentials.map((c) => stemOf(c.id)),
+    ...(resume.education.entry ? { educationIds: [stemOf(resume.education.entry.id)] } : {}),
+    address: {
+      addressLocality:
+        (person.data.address as { addressLocality?: string } | undefined)?.addressLocality ??
+        "Bandung",
+      addressCountry:
+        (person.data.address as { addressCountry?: string } | undefined)?.addressCountry ?? "ID",
+    },
+  }),
+    {
+      "@type": "ProfilePage",
+      "@id": webpageId("/cv"),
+      url: pageUrl,
+
+      name: "Curriculum Vitae",
+      isPartOf: { "@id": WEBSITE_ID },
+      about: { "@id": PERSON_ID },
+      mainEntity: { "@id": PERSON_ID },
+      dateCreated: toSiteMonthIso(
+        resume.experience.map((e) => e.data.startDate).sort()[0] ?? "2018-01",
+      ),
+      ...(maxContentDate ? { dateModified: maxContentDate.toISOString() } : {}),
+      breadcrumb: { "@id": breadcrumbId("/cv") },
+    } satisfies ProfilePage,
+    websiteNode(),
+    breadcrumbNode("/cv", [
+      { name: "Home", item: "/" },
+      { name: "CV", item: "/cv" },
+    ]),
+  ]
+);
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://api.fontshare.com" />
+    <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+    <link
+      href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,800&display=swap"
+      rel="stylesheet"
+    />
+    <title>CV: {person.data.name}</title>
+    <meta
+      name="description"
+      content="ATS-friendly resume of Andriyansyah Nurrachman: experience, education, skills, projects, certifications."
+    />
+    <link rel="canonical" href={pageUrl} />
+    <JsonLd nodes={graphNodes} />
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        overflow-x: clip;
+      }
+      body {
+        margin: 0;
+        background: var(--background, #fff);
+        color: var(--foreground, #000);
+        font-family: Arial, Calibri, "Times New Roman", serif;
+        font-size: 1rem;
+        line-height: 1.5;
+      }
+      main {
+        max-width: 60rem;
+        min-width: 0;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 4rem;
+      }
+      main :is(p, li, a) {
+        overflow-wrap: anywhere;
+      }
+      h1 {
+        font-family: Arial, Calibri, "Times New Roman", serif;
+        font-weight: 800;
+        font-size: clamp(2.5rem, 1.5rem + 5vw, 4.5rem);
+        letter-spacing: -0.02em;
+        line-height: 0.95;
+        margin: 0 0 0.5rem;
+        text-wrap: balance;
+      }
+      h2 {
+        font-size: 1.25rem;
+        line-height: 1.3;
+        margin: 2rem 0 0.5rem;
+        padding-bottom: 0.25rem;
+        border-bottom: 2px solid #000;
+      }
+      h3 {
+        font-size: 1.05rem;
+        margin: 1rem 0 0.25rem;
+      }
+      p,
+      li {
+        max-width: auto;
+      }
+      p {
+        margin: 0.5rem 0;
+      }
+      ul {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+      }
+      li {
+        margin-bottom: 0.25rem;
+      }
+      .contact {
+        margin: 0 0 1rem;
+        font-size: 1.125rem;
+        max-width: 75ch;
+      }
+      @media (max-width: 40rem) {
+        h1 {
+          font-size: 2rem;
+          line-height: 1.05;
+        }
+      }
+      .time {
+        margin: 0;
+      }
+      a {
+        color: #000;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      @media print {
+        main {
+          max-width: none;
+          padding: 0;
+        }
+        body {
+          font-size: 11pt;
+        }
+        h1 {
+          font-size: 22pt;
+        }
+        a[href^="http"]::after {
+          content: " (" attr(href) ")";
+          word-break: break-all;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>{person.data.name}</h1>
+      <p class="contact">
+        {person.data.jobTitle} · {personPlace} · {person.data.email.replace("website", "cv")}
+      </p>
+
+      <h2 id="summary">Summary</h2>
+      <p>{person.data.description}</p>
+
+      <section aria-labelledby="skills">
+      <h2 id="skills">Skills</h2>
+      {[...skillsByCategory.entries()].map(([cat, list]) => (
+        <section data-cv-section aria-label={cat}>
+          <h3>{cat}</h3>
+          <p>
+            {list.map((s,i) => {
+              const stem = s.id.split("/").pop() ?? s.id;
+              const f = filterOf("skill", stem);
+              const level = (s.data as { proficiencyLevel?: string }).proficiencyLevel;
+              return (
+                <span
+                  data-cv-item
+                  data-kind="skill"
+                  data-org=""
+                  data-skill={stem}
+                  data-exp={f.facets.exp.join(" ")}
+                  data-project={f.facets.project.join(" ")}
+                  data-text={textOf([s.data.name, s.data.description, level])}
+                >
+                  {s.data.name}{i < list.length - 1 ? ", ": "."}
+                </span>
+              );
+            })}
+          </p>
+        </section>
+      ))}
+      </section>
+
+      <section aria-labelledby="experience">
+      <h2 id="experience">Work Experience</h2>
+      {
+        resume.experience.map((e) => {
+          const org = lookupOrg(e.data.worksFor);
+          const orgId = org?.id ?? "";
+          const chain = org ? orgAncestorNames(orgsAll, org) : [];
+          const bullets = responsibilitiesToBullets(e.data.occupation?.responsibilities as string | string[] | undefined);
+          const skillStems = [
+            ...new Set([
+              ...((e.data.skills ?? []) as unknown[]).map(stemOf),
+              ...(((e.data.occupation?.skills ?? []) as unknown[]).map(stemOf)),
+            ]),
+          ];
+          const expStem = e.id.split("/").pop() ?? e.id;
+          const expFilter = filterOf("experience", expStem);
+          return (
+            <section
+              data-cv-item
+              data-kind="experience"
+              data-org={orgStemAttr(e.data.worksFor)}
+              data-skill={skillStems.join(" ")}
+              data-exp={expFilter.facets.exp.join(" ")}
+              data-project={expFilter.facets.project.join(" ")}
+              data-date={ymDay(e.data.startDate)}
+              data-date-end={e.data.endDate ? ymDay(e.data.endDate) : ""}
+              data-text={textOf([e.data.roleName, org?.data.name, e.data.description, ...bullets])}
+            >
+              <h3>
+                {e.data.roleName} – {org?.data.name ?? orgId}
+              </h3>
+              {chain.length > 0 && <p>Part of {chain.join(", ")}</p>}
+              <p class="time">{fmtRange(e.data.startDate, e.data.endDate)}</p>
+              <ul>
+                {bullets.map((b) => (
+                  <li>{b}</li>
+                ))}
+              </ul>
+            </section>
+          );
+        })
+      }
+      </section>
+
+      <section aria-labelledby="education">
+      <h2 id="education">Education</h2>
+      <section
+        data-cv-item
+        data-kind="education"
+        data-org={`${resume.education.entry ? orgStemAttr(resume.education.entry.data.recognizedBy) : ""} ${resume.education.entry?.data.department ? orgStemAttr(resume.education.entry.data.department) : ""}`.trim()}
+        data-skill={resume.education.entry ? ((resume.education.entry.data.about ?? []) as unknown[]).map(stemOf).join(" ") : ""}
+        data-exp=""
+        data-project=""
+        data-date={resume.education.entry ? ymDay(resume.education.entry.data.startDate) : ""}
+        data-date-end={resume.education.entry?.data.endDate ? ymDay(resume.education.entry.data.endDate) : ""}
+        data-text={textOf([
+          resume.education.entry?.data.name,
+          resume.education.entry?.data.description,
+          resume.education.org?.data.name,
+        ])}
+      >
+        <h3>
+          {resume.education.org?.data.name ?? "Universitas Padjadjaran"}
+          {resume.education.entry?.data.startDate
+            ? `, ${/^\d{4}$/.test(resume.education.entry.data.startDate) ? resume.education.entry.data.startDate : fmtMonthYear(resume.education.entry.data.startDate)} – ${resume.education.entry.data.endDate ? (/^\d{4}$/.test(resume.education.entry.data.endDate) ? resume.education.entry.data.endDate : fmtMonthYear(resume.education.entry.data.endDate)) : "Present"}`
+            : ""}
+        </h3>
+        {resume.education.entry && (
+          <>
+            <p>
+              {resume.education.entry.data.name}
+              {resume.education.entry.data.educationalLevel
+                ? ` (${resume.education.entry.data.educationalLevel})`
+                : ""}
+              . {resume.education.entry.data.description}
+            </p>
+            {alumniNames.length > 0 && <p>Alma mater: {alumniNames.join(", ")}.</p>}
+          </>
+        )}
+      </section>
+      </section>
+
+      <section aria-labelledby="projects">
+      <h2 id="projects">Projects</h2>
+      <ul>
+        {
+          resume.projects.map((p) => {
+            const langStems = ((p.data.programmingLanguage ?? []) as unknown[]).map(stemOf);
+            const projStem = p.id.split("/").pop() ?? p.id;
+            const projFilter = filterOf("project", projStem);
+            const year = p.data.pubDate instanceof Date && !Number.isNaN(+p.data.pubDate) ? String(p.data.pubDate.getFullYear()) : "";
+            return (
+              <li
+                data-cv-item
+                data-kind="project"
+                data-org={orgStemAttr((p.data.provider ?? p.data.isPartOf) as unknown)}
+                data-skill={langStems.join(" ")}
+                data-exp={projFilter.facets.exp.join(" ")}
+                data-project={projFilter.facets.project.join(" ")}
+                data-date={dayOf(p.data.pubDate)}
+                data-text={textOf([p.data.title, p.data.description, p.data.outcome])}
+              >
+                {p.data.title} ({roleFallback(p.data.role)}{year ? `, ${year}` : ""}). {p.data.description}{p.data.outcome ? ` Outcome: ${p.data.outcome}` : ""}
+              </li>
+            );
+          })
+        }
+      </ul>
+      </section>
+
+      <section aria-labelledby="certifications">
+      <h2 id="certifications">Certifications</h2>
+      <ul>
+        {
+          resume.credentials.map((c) => {
+            const issuer = lookupOrg(c.data.recognizedBy);
+            const aboutStems = ((c.data.about ?? []) as unknown[]).map(stemOf);
+            const credStem = c.id.split("/").pop() ?? c.id;
+            const credFilter = filterOf("credential", credStem);
+            const year = c.data.dateCreated instanceof Date && !Number.isNaN(+c.data.dateCreated) ? String(c.data.dateCreated.getFullYear()) : "";
+            return (
+              <li
+                data-cv-item
+                data-kind="certification"
+                data-org={issuer ? (issuer.id.split("/").pop() ?? issuer.id) : ""}
+                data-skill={aboutStems.join(" ")}
+                data-exp={credFilter.facets.exp.join(" ")}
+                data-project={credFilter.facets.project.join(" ")}
+                data-date={dayOf(c.data.dateCreated)}
+                data-date-end={c.data.validUntil ? dayOf(c.data.validUntil) : ""}
+                data-text={textOf([c.data.name, c.data.description, issuer?.data.name])}
+              >
+                {c.data.name}{year ? ` (${year})` : ""} – {c.data.description}
+                {issuer && <>{` (Recognized by ${issuer.data.name})`}</>}
+              </li>
+            );
+          })
+        }
+      </ul>
+      </section>
+
+      <section aria-labelledby="languages">
+      <h2 id="languages">Languages</h2>
+      <ul>
+        {(person.data.knowsLanguage ?? ["id", "en"]).map((code: string) => (
+          <li>{LANGUAGE_NAMES[code] ?? code} ({code})</li>
+        ))}
+      </ul>
+      </section>
+    </main>
+    <script is:inline>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var items = Array.prototype.slice.call(document.querySelectorAll("[data-cv-item]"));
+        if (Array.from(params.keys()).length === 0) return;
+        var iso = /^\d{4}-\d{2}-\d{2}$/;
+        var from = params.get("from");
+        var to = params.get("to");
+        if (from && !iso.test(from)) from = null;
+        if (to && !iso.test(to)) to = null;
+        var q = (params.get("q") || "").trim().toLowerCase();
+        var facets = {};
+        params.forEach(function (v, k) {
+          if (k !== "q" && k !== "from" && k !== "to" && k !== "page" && v) {
+            if (!facets[k]) facets[k] = [];
+            if (facets[k].indexOf(v) === -1) facets[k].push(v);
+          }
+        });
+        items.forEach(function (el) {
+          var keep = true;
+          for (var k in facets) {
+            var stems = (el.getAttribute("data-" + k) || "").split(/\s+/).filter(Boolean);
+            var wanted = facets[k];
+            var hit = false;
+            for (var i = 0; i < wanted.length; i++) {
+              if (stems.indexOf(wanted[i]) !== -1) {
+                hit = true;
+                break;
+              }
+            }
+            if (!hit) {
+              keep = false;
+              break;
+            }
+          }
+          if (keep) {
+            var s = el.getAttribute("data-date") || "";
+            var e = el.getAttribute("data-date-end") || "";
+            if (s) {
+              var end = e || "9999-12-31";
+              if ((from && end < from) || (to && s > to)) keep = false;
+            }
+          }
+          if (keep && q) {
+            var hay = (el.getAttribute("data-text") || "").toLowerCase();
+            keep = q
+              .split(/\s+/)
+              .every(function (w) { return hay.indexOf(w) !== -1; });
+          }
+          if ("hidden" in el) el.hidden = !keep;
+          else el.style.display = keep ? "" : "none";
+        });
+        Array.prototype.forEach.call(document.querySelectorAll("[data-cv-section]"), function (sec) {
+          var visible = sec.querySelector("[data-cv-item]:not([hidden])");
+          if ("hidden" in sec) sec.hidden = visible === null;
+          else sec.style.display = visible === null ? "none" : "";
+        });
+      })();
+    </script>
+  </body>
+</html>

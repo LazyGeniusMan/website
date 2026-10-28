@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "algorithm": "sha256",
+  "remote": "r2:website-assets/site-root",
+  "generatedAt": "2026-10-20T05:13:32Z",
+  "commit": "9d772c0",
+  "assets": []
+}

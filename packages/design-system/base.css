@@ -1,0 +1,142 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@source "../ui/src";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #e9eff7;
+  --foreground: #10233d;
+  --card: #dbe5f1;
+  --card-foreground: #10233d;
+  --popover: #e9eff7;
+  --popover-foreground: #10233d;
+  --primary: #1248c4;
+  --primary-foreground: #ffffff;
+  --secondary: #dbe5f1;
+  --secondary-foreground: #10233d;
+  --muted: #dbe5f1;
+  --muted-foreground: #3d4f66;
+  --accent: #1248c4;
+  --accent-foreground: #ffffff;
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --border: #c2cfe1;
+  --input: #c2cfe1;
+  --ring: #1248c4;
+  --radius: 0;
+  --font-sans: "Cabinet Grotesk", "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cabinet Grotesk", "Barlow Condensed", ui-sans-serif, system-ui, sans-serif;
+  --step-caption: 0.875rem;
+  --step-body: 1.125rem;
+  --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+  --step-head: clamp(2.5rem, 1.2rem + 5vw, 5.5rem);
+  --step-mega: clamp(4rem, 1.5rem + 10vw, 10rem);
+}
+
+.dark {
+  --background: #0a1526;
+  --foreground: #e9eff7;
+  --card: #12233b;
+  --card-foreground: #e9eff7;
+  --popover: #12233b;
+  --popover-foreground: #e9eff7;
+  --primary: #6f97ff;
+  --primary-foreground: #0a1526;
+  --secondary: #12233b;
+  --secondary-foreground: #e9eff7;
+  --muted: #12233b;
+  --muted-foreground: #8ea3bd;
+  --accent: #6f97ff;
+  --accent-foreground: #0a1526;
+  --destructive: #e58a8a;
+  --destructive-foreground: #0a1526;
+  --border: #233a58;
+  --input: #233a58;
+  --ring: #6f97ff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+}
+
+:root {
+  --band: var(--background);
+  --rail: var(--card);
+  --field: var(--foreground);
+  --on-field: var(--background);
+  --shell-side-width: 16rem;
+  --shell-rail-width: 17rem;
+  --shell-bottom-height: 4.25rem;
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--card-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  --sidebar-accent: var(--muted);
+  --sidebar-accent-foreground: var(--muted-foreground);
+}
+
+@layer components {
+  [data-slot="card"] {
+    border-radius: 0;
+  }
+  [data-slot="badge"] {
+    font-size: 1rem;
+  }
+  [data-slot="card-footer"] {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+  [data-slot="pagination"] button,
+  [data-slot="pagination"] a {
+    min-height: 44px;
+    border-radius: 0;
+  }
+  [data-slot="card-description"] {
+    font-size: 1rem !important;
+    line-height: 1.5;
+  }
+  [data-slot="table"] {
+    font-size: 1rem !important;
+  }
+}

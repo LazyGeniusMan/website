@@ -1,0 +1,19 @@
+---
+import type { Graph } from "schema-dts";
+import { safeJsonLd } from "../lib/jsonld";
+
+export interface Props {
+  nodes: Graph["@graph"];
+}
+
+const { nodes } = Astro.props;
+
+
+
+const payload: Graph = {
+  "@context": "https://schema.org",
+  "@graph": nodes,
+};
+---
+
+<script type="application/ld+json" set:html={safeJsonLd(payload)} />

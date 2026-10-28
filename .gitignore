@@ -7,12 +7,20 @@
 !.env.example
 *.log*
 .tmp/
+.taste-skill/**/*.jp*g
+.taste-skill/**/*.png
+.taste-skill/**/report.json
 
 # ai
 .config/ai-rulez.bak*
 
 # typescript
 node_modules
+dist
+.astro
+
+# cloudflare
+.cloudflare
 
 # BEGIN ai-rulez (DO NOT EDIT - managed by ai-rulez)
 .agents/skills/
@@ -25,3 +33,19 @@ node_modules
 .pi/prompts/
 AGENTS.md
 # END ai-rulez
+
+# generated artifacts (built, never committed)
+apps/personal-site/public/cv.pdf
+
+# binary asset policy (foundation decision: untracked fetch-only, no exceptions).
+# RAW originals are NEVER committed; only the manifest + placeholder are tracked.
+# CI `git ls-files` binary gate fails on ANY tracked binary (no manifest-covered
+# allowlist). scripts/fetch-assets.mjs (rclone, manifest-as-truth) restores bytes
+# at dev/build time. Consistent with .github/workflows/personal-site.yml audit.
+apps/personal-site/src/assets/*
+!apps/personal-site/src/assets/.assets-manifest.json
+!apps/personal-site/src/assets/.gitkeep
+assets/*
+!assets/credits.json
+!assets/.assets-manifest.json
+!assets/.gitkeep

@@ -1,0 +1,140 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Section from "../../components/Section.astro";
+import ThumbPlaceholder from "../../components/ThumbPlaceholder.astro";
+import { Image, getImage } from "astro:assets";
+import { abs, breadcrumbNode, collectionPageNode, organizationNode, resolveSiteUrl, toGraph } from "../../lib/jsonld";
+import Filter from "../../components/islands/Filter.svelte";
+import { orgSlugOf } from "../../lib/collections";
+import { ORGANIZATIONS_PAGE_SIZE, ORGANIZATIONS_PATH, getOrganizationThumbSources, getOrganizationsList, orgTypeLabel } from "../../lib/lists/organizations";
+
+const { sorted, groups, items, parentNameOf, deptNameOf, parentStemOf, countsOf } = await getOrganizationsList();
+const thumbSources = await getOrganizationThumbSources(sorted);
+const thumbBySlug = new Map(sorted.map((o) => [orgSlugOf(o), thumbSources.get(o.id)]));
+const itemsWithThumbs = await Promise.all(
+  items.map(async (item) => {
+    const source = thumbBySlug.get(item.id);
+    if (!source) return item;
+    const thumb = await getImage({ src: source.src, width: 128, format: "webp", quality: 60 });
+    return { ...item, thumbSrc: thumb.src, thumbAlt: source.alt };
+  }),
+);
+
+const siteUrl = resolveSiteUrl(Astro.site);
+const graphNodes = toGraph([
+  collectionPageNode({
+    path: "/organizations",
+    siteUrl,
+    name: "Organizations",
+    description: `${sorted.length} employers, campuses, and partners: organization names, types, and relationships.`,
+    items: sorted.map((o) => ({ name: o.data.name, url: abs(`/organizations/${orgSlugOf(o)}`) })),
+  }),
+  ...sorted.map((o) =>
+    organizationNode({
+      slug: orgSlugOf(o),
+      siteUrl,
+      type: o.data.type,
+      name: o.data.name,
+      ...(o.data.alternateName ? { alternateName: o.data.alternateName } : {}),
+      ...(o.data.description ? { description: o.data.description } : {}),
+      ...(o.data.url ? { url: o.data.url } : {}),
+      ...(o.data.logo ? { logo: o.data.logo } : {}),
+      ...(o.data.sameAs?.length ? { sameAs: [...o.data.sameAs] } : {}),
+      ...(parentStemOf(o) ? { parentStem: parentStemOf(o) as string } : {}),
+      ...(deptNameOf(o) ? { department: deptNameOf(o) as string } : {}),
+    }),
+  ),
+  breadcrumbNode("/organizations", [
+    { name: "Home", item: "/" },
+    { name: "Organizations", item: "/organizations" },
+  ]),
+]);
+---
+
+<Layout title="Organizations" description={`${sorted.length} employers, campuses, and partners: organization names, types, and relationships.`} graphNodes={graphNodes}>
+  <Section variant="sheet" labelledby="orgs-heading">
+    <h1 id="orgs-heading" class="display text-[clamp(2.5rem,1.2rem+5vw,5.5rem)]">Organizations</h1>
+    <p class="mt-6 max-w-xl text-xl leading-snug md:text-2xl">
+      {sorted.length} employers, campuses, and partners: organization names, types, and relationships.
+    </p>
+  </Section>
+
+  <section id="organizations" class="page-margin mt-10 scroll-mt-24 md:mt-14" aria-labelledby="organizations-heading" data-motion>
+    <h2 id="organizations-heading" class="sr-only">Employers and partners</h2>
+    <div class="mt-4">
+      <Filter groups={groups} items={itemsWithThumbs} pageSize={ORGANIZATIONS_PAGE_SIZE} label="Filter organizations" view="results" client:visible />
+    </div>
+    <noscript>
+      <p class="mt-10 text-lg text-muted-foreground">
+        Filtering needs JavaScript. Showing all {sorted.length} organizations.
+      </p>
+      <ol class="mt-6 grid min-w-0 max-w-full grid-cols-[repeat(1,minmax(0,1fr))] gap-4 [overflow-wrap:anywhere] lg:grid-cols-[repeat(2,minmax(0,1fr))]">
+        {sorted.map((o) => {
+          const parentName = parentNameOf(o);
+          const dept = deptNameOf(o);
+          const source = thumbSources.get(o.id);
+          return (
+            <li class="w-full min-w-0 max-w-full">
+              <div class="flex min-w-0 max-w-full flex-wrap items-start gap-4 [overflow-wrap:anywhere]">
+                {source ? (
+                  <Image
+                    src={source.src}
+                    width={128}
+                    format="webp"
+                    quality={60}
+                    alt={source.alt}
+                    loading="lazy"
+                    decoding="async"
+                    class="size-16 flex-none object-cover"
+                  />
+                ) : (
+                  <ThumbPlaceholder name={o.data.name} />
+                )}
+                <div class="min-w-0 max-w-full flex-1">
+                  <h3 class="text-xl font-medium">
+                    <a class="hover:text-primary hover:underline underline-offset-4" href={`/organizations/${orgSlugOf(o)}`}>
+                      {o.data.name}
+                    </a>
+                  </h3>
+                  <p class="mt-2 max-w-xl text-lg">
+                    {[o.data.alternateName, orgTypeLabel(o.data.type)].filter(Boolean).join(" · ")}
+                  </p>
+                  <p class="mt-1 max-w-xl text-lg text-muted-foreground">
+                    {[parentName ? `Part of ${parentName}` : "Top-level", dept, countsOf(o)].filter(Boolean).join(" · ")}
+                  </p>
+                  {o.data.url && (
+                    <p class="mt-1 text-lg">
+                      <a class="text-primary underline underline-offset-4" href={o.data.url}>{(() => { try { return new URL(o.data.url as string).hostname; } catch { return o.data.url; } })()}</a>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </noscript>
+  </section>
+
+  <div slot="secondary">
+    <Filter groups={groups} pageSize={ORGANIZATIONS_PAGE_SIZE} label="Filter organizations" view="controls" client:only="svelte" />
+    <noscript>
+      <p class="text-lg font-medium">Filters</p>
+      <p class="mt-2 text-base text-muted-foreground">
+        Filtering needs JavaScript. Browse by connection below.
+      </p>
+      {groups.map((g) => (
+        <div class="mt-6">
+          <p class="text-base font-medium">{g.label}</p>
+          <ul class="mt-2 flex flex-col gap-2">
+            {g.options.map((o) => (
+              <li>
+                <a class="text-primary underline underline-offset-4" href={`${ORGANIZATIONS_PATH}?${g.key}=${o.id}`}>{o.label}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </noscript>
+  </div>
+</Layout>
